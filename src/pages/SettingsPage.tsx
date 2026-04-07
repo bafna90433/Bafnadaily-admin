@@ -153,6 +153,7 @@ const SettingsPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Site Name</label>{inp('siteName', 'text', 'Reteiler')}</div>
                   <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Tagline</label>{inp('siteTagline', 'text', 'Gifts & Accessories')}</div>
+                  <div className="col-span-2"><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Announcement / Promo Bar Text</label>{inp('promoText', 'text', '🚚 Free Delivery on orders above ₹499 | COD Available 🎁')}</div>
                   <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Support Email</label>{inp('supportEmail', 'email')}</div>
                   <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Support Phone</label>{inp('supportPhone', 'tel')}</div>
                 </div>
