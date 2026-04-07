@@ -64,12 +64,6 @@ const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-xl text-xs text-blue-700">
-            <p className="font-bold mb-1">Default Credentials (first run):</p>
-            <p>Email: <strong>admin@reteiler.in</strong></p>
-            <p>Password: <strong>Admin@123</strong></p>
-            <p className="mt-1 text-blue-500">⚠️ Change after first login!</p>
-          </div>
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-4">Reteiler Admin Panel v2.0</p>
