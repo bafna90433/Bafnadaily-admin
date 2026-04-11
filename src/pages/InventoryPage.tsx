@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { 
   Package, Search, Printer, RotateCcw, Zap, History, 
   ArrowUp, ArrowDown, AlertCircle, CheckCircle2, X, PlusCircle, MinusCircle, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Barcode from 'react-barcode';
-
-const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
-});
 
 interface Product {
   _id: string;
