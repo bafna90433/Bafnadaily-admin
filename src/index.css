@@ -25,3 +25,51 @@
   animation: shimmer 1.5s infinite;
 }
 @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+
+/* Barcode Scanner Animations */
+@keyframes laser {
+  0%, 100% { top: 0%; opacity: 0; }
+  5%, 95% { opacity: 1; }
+  50% { top: 100%; }
+}
+
+.animate-laser {
+  animation: laser 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.scanner-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 260px;
+  height: 160px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.scanner-corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: #E91E63; /* primary color */
+  border-style: solid;
+}
+
+.corner-tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-radius: 12px 0 0 0; }
+.corner-tr { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-radius: 0 12px 0 0; }
+.corner-bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-radius: 0 0 0 12px; }
+.corner-br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-radius: 0 0 12px 0; }
+
+.laser-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #E91E63;
+  box-shadow: 0 0 15px 2px #E91E63;
+  z-index: 6;
+}

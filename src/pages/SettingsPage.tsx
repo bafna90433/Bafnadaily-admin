@@ -368,6 +368,18 @@ const SettingsPage: React.FC = () => {
           {tab === 'advanced' && (
             <div className="card p-6 space-y-5">
               <h3 className="font-bold text-lg border-b pb-3 text-red-600">⚠️ Advanced Settings</h3>
+
+              {/* Haptic Feedback */}
+              <div className="p-5 rounded-2xl border-2 border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-base">📳 Haptic Feedback (App Vibration)</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Vibrate phone on button taps in customer app</p>
+                  </div>
+                  <Toggle checked={settings.hapticFeedback !== false} onChange={v => set('hapticFeedback', v)}/>
+                </div>
+              </div>
+
               <div className={`p-5 rounded-2xl border-2 transition-colors ${settings.maintenanceMode ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                 <div className="flex items-center justify-between">
                   <div>

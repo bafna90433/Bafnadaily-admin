@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Upload, X, ArrowLeft, Loader2 } from 'lucide-react'
+import { Upload, X, ArrowLeft, Loader2, QrCode, Zap, Printer } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
+import Barcode from 'react-barcode'
 
 interface FormState {
   name:string; description:string; shortDescription:string; price:string; mrp:string; stock:string; sku:string;
   category:string; material:string; weight:string; tags:string; color:string;
   isFeatured:boolean; isTrending:boolean; isNewArrival:boolean; isBestSeller:boolean; giftWrapping:boolean;
-  images: {url:string; fileId?:string}[]
+  images: {url:string; fileId?:string}[];
+  barcode: string;
 }
 
-const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',color:'',isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[] }
+const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',color:'',isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[], barcode: '' }
 
 const AddProductPage: React.FC = () => {
   const { id } = useParams<{id:string}>()
@@ -27,7 +29,7 @@ const AddProductPage: React.FC = () => {
     if (isEdit) {
       api.get(`/products/by-id/${id}`).then(r => {
         const p = r.data.product
-        setForm({ ...INIT, ...p, price: String(p.price), mrp: String(p.mrp), stock: String(p.stock), tags: p.tags?.join(',') || '', color: p.color?.join(',') || '', category: p.category?._id || p.category || '', images: p.images || [] })
+        setForm({ ...INIT, ...p, price: String(p.price), mrp: String(p.mrp), stock: String(p.stock), tags: p.tags?.join(',') || '', color: p.color?.join(',') || '', category: p.category?._id || p.category || '', images: p.images || [], barcode: p.barcode || '' })
       }).catch(() => navigate('/products'))
     }
   }, [id])
@@ -59,6 +61,55 @@ const AddProductPage: React.FC = () => {
       navigate('/products')
     } catch (err: any) { toast.error(err.response?.data?.message || 'Failed') } finally { setLoading(false) }
   }
+
+  const generateBarcode = () => {
+    const prefix = form.sku ? form.sku.replace(/[^a-zA-Z0-9]/g, '').slice(0, 5).toUpperCase() : 'RET'
+    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0')
+    const barcode = `${prefix}${random}`
+    set('barcode', barcode)
+  }
+
+  const printLabel = () => {
+    const printWindow = window.open('', '_blank', 'width=600,height=400');
+    if (!printWindow) {
+      alert('Please allow pop-ups for this website to print labels.');
+      return;
+    }
+    
+    // Get the HTML content with all styles
+    const barcodeElement = document.getElementById('barcode-to-print');
+    if (!barcodeElement) {
+      toast.error('Barcode preview not found');
+      return;
+    }
+    
+    const content = barcodeElement.innerHTML;
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print Label - ${form.barcode}</title>
+          <style>
+            @page { size: 50mm 25mm; margin: 0; }
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
+            html, body { margin: 0 !important; padding: 0 !important; width: 50mm; height: 25mm; background: white; overflow: hidden; }
+            .print-container { width: 50mm; height: 25mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; font-family: 'Segoe UI', sans-serif; padding: 1mm 1mm; text-align: center; }
+            p { margin: 0; padding: 0; }
+            .name { font-size: 7pt; font-weight: 900; text-transform: uppercase; margin-bottom: 0; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
+            .mrp { font-size: 11pt; font-weight: 900; margin-top: 0; color: black; line-height: 1; }
+            .barcode-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; overflow: hidden; padding: 0.5mm 0; }
+            svg { max-width: 98%; height: auto !important; max-height: 15mm; shape-rendering: crispEdges; }
+          </style>
+        </head>
+        <body onload="setTimeout(() => { window.print(); window.close(); }, 500)">
+          <div class="print-container">
+            ${content}
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   const toggleBadge = (k: 'isFeatured'|'isTrending'|'isNewArrival'|'isBestSeller'|'giftWrapping') => set(k, !form[k])
 
@@ -135,6 +186,68 @@ const AddProductPage: React.FC = () => {
               )}
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Stock Qty</label><input type="number" value={form.stock} onChange={e=>set('stock',e.target.value)} className="input" placeholder="100" min="0"/></div>
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">SKU</label><input value={form.sku} onChange={e=>set('sku',e.target.value)} className="input" placeholder="RET-KEY-001"/></div>
+              <div className="pt-2 border-t mt-4">
+                <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Identity & Barcode</label>
+                <div className="flex gap-2 mb-4">
+                  <div className="relative flex-1">
+                    <QrCode size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      value={form.barcode} 
+                      onChange={e=>set('barcode',e.target.value)} 
+                      className="input pl-9" 
+                      placeholder="Auto-generate or scan"
+                    />
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={generateBarcode} 
+                    className="flex items-center gap-2 px-4 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition-all active:scale-95"
+                  >
+                    <Zap size={14} fill="currentColor" /> Generate
+                  </button>
+                </div>
+
+                {form.barcode && (
+                  <div className="relative group bg-white border-2 border-dashed border-gray-200 rounded-2xl p-4 transition-all hover:border-primary/50 hover:bg-gray-50/50">
+                    <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Retail Tag Preview</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">READY TO PRINT</span>
+                    </div>
+                    
+                    <div className="flex flex-col items-center justify-between h-[80px]" id="barcode-to-print">
+                      <p className="name text-[7.5pt] font-black text-gray-800 uppercase line-clamp-1 w-full text-center">{form.name || 'PRODUCT NAME'}</p>
+                      <div className="barcode-wrapper flex-1 flex items-center justify-center w-full">
+                        <Barcode 
+                          value={form.barcode} 
+                          width={2.5} 
+                          height={55} 
+                          fontSize={16} 
+                          background="transparent" 
+                          fontOptions="bold"
+                          margin={5}
+                        />
+                      </div>
+                      <p className="mrp text-[11pt] font-black text-slate-800">MRP: ₹{form.mrp || form.price || '0.00'}</p>
+                    </div>
+
+                    <div className="mt-4 flex gap-2">
+                      <button 
+                        type="button" 
+                        onClick={printLabel} 
+                        className="flex-1 btn bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-white justify-center text-xs"
+                      >
+                        <Printer size={14} /> Print Label Sticker
+                      </button>
+                    </div>
+                    
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => set('barcode', '')} className="p-1 text-gray-400 hover:text-red-500">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="card p-5">

@@ -10,10 +10,11 @@ import OrdersPage from './pages/OrdersPage'
 import CategoriesPage from './pages/CategoriesPage'
 import UsersPage from './pages/UsersPage'
 import CustomersPage from './pages/CustomersPage'
-import BannersPage from './pages/BannersPage'
+import StorefrontPage from './pages/StorefrontPage'
 import CouponsPage from './pages/CouponsPage'
 import SettingsPage from './pages/SettingsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
+import InventoryPage from './pages/InventoryPage'
 
 const isAdmin = () => !!localStorage.getItem('adminToken')
 
@@ -47,10 +48,11 @@ const App: React.FC = () => (
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="users" element={<UsersPage />} />
-        <Route path="banners" element={<BannersPage />} />
+        <Route path="banners" element={<StorefrontPage />} />
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
       </Route>
     </Routes>
   </BrowserRouter>
