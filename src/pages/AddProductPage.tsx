@@ -11,9 +11,10 @@ interface FormState {
   isFeatured:boolean; isTrending:boolean; isNewArrival:boolean; isBestSeller:boolean; giftWrapping:boolean;
   images: {url:string; fileId?:string}[];
   barcode: string;
+  minQty: string;
 }
 
-const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',color:'',isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[], barcode: '' }
+const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',color:'',isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[], barcode: '', minQty: '1' }
 
 const AddProductPage: React.FC = () => {
   const { id } = useParams<{id:string}>()
@@ -29,7 +30,7 @@ const AddProductPage: React.FC = () => {
     if (isEdit) {
       api.get(`/products/by-id/${id}`).then(r => {
         const p = r.data.product
-        setForm({ ...INIT, ...p, price: String(p.price), mrp: String(p.mrp), stock: String(p.stock), tags: p.tags?.join(',') || '', color: p.color?.join(',') || '', category: p.category?._id || p.category || '', images: p.images || [], barcode: p.barcode || '' })
+        setForm({ ...INIT, ...p, price: String(p.price), mrp: String(p.mrp), stock: String(p.stock), minQty: String(p.minQty || 1), tags: p.tags?.join(',') || '', color: p.color?.join(',') || '', category: p.category?._id || p.category || '', images: p.images || [], barcode: p.barcode || '' })
       }).catch(() => navigate('/products'))
     }
   }, [id])
@@ -55,7 +56,7 @@ const AddProductPage: React.FC = () => {
     if (!form.name || !form.price || !form.category) { toast.error('Fill required fields'); return }
     setLoading(true)
     try {
-      const payload = { ...form, price: Number(form.price), mrp: Number(form.mrp || form.price), stock: Number(form.stock || 0), tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [], color: form.color ? form.color.split(',').map(c=>c.trim()).filter(Boolean) : [] }
+      const payload = { ...form, price: Number(form.price), mrp: Number(form.mrp || form.price), stock: Number(form.stock || 0), minQty: Number(form.minQty || 1), tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [], color: form.color ? form.color.split(',').map(c=>c.trim()).filter(Boolean) : [] }
       if (isEdit) { await api.put(`/products/${id}`, payload); toast.success('Product updated!') }
       else { await api.post('/products', payload); toast.success('Product created!') }
       navigate('/products')
@@ -185,6 +186,11 @@ const AddProductPage: React.FC = () => {
                 <div className="bg-green-50 text-green-700 text-xs font-semibold px-3 py-2 rounded-lg">Discount: {Math.round(((Number(form.mrp)-Number(form.price))/Number(form.mrp))*100)}% OFF</div>
               )}
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Stock Qty</label><input type="number" value={form.stock} onChange={e=>set('stock',e.target.value)} className="input" placeholder="100" min="0"/></div>
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Min Order Qty (MQ) 📦</label>
+                <input type="number" value={form.minQty} onChange={e=>set('minQty',e.target.value)} className="input" placeholder="1" min="1"/>
+                <p className="text-xs text-gray-400 mt-1">e.g. Set 3 → customer must buy min 3 pcs</p>
+              </div>
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">SKU</label><input value={form.sku} onChange={e=>set('sku',e.target.value)} className="input" placeholder="RET-KEY-001"/></div>
               <div className="pt-2 border-t mt-4">
                 <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Identity & Barcode</label>
