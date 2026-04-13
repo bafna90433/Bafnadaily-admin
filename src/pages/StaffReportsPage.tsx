@@ -73,7 +73,7 @@ const StaffReportsPage: React.FC = () => {
         <button 
           onClick={fetchReports}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl hover:bg-primary/20 transition-colors font-semibold"
+          className="flex items-center gap-2 px-4 py-2 bg-pink-50 text-primary rounded-xl hover:bg-pink-100 transition-colors font-semibold"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           Refresh
@@ -86,7 +86,7 @@ const StaffReportsPage: React.FC = () => {
           <input
             type="text"
             placeholder="Search by staff name..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-primary transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -142,7 +142,7 @@ const StaffReportsPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-gray-50 flex items-center gap-2">
+                <div className="pt-3 border-t border-gray-100 flex items-center gap-2">
                   <button 
                     onClick={() => handleDownload(report, 'png')}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition-colors"
@@ -152,7 +152,7 @@ const StaffReportsPage: React.FC = () => {
                   </button>
                   <button 
                     onClick={() => handleDownload(report, 'webp')}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary-dark shadow-sm shadow-primary/20 transition-all active:scale-95"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#E91E63] text-white rounded-lg text-xs font-semibold hover:bg-[#AD1457] shadow-sm transition-all active:scale-95"
                   >
                     <FileDown size={14} />
                     WEBP
