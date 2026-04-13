@@ -16,6 +16,7 @@ const NAV = [
   { to: '/coupons', icon: Ticket, label: 'Coupons' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/inventory', icon: Boxes, label: 'Inventory' },
+  { to: '/staff-reports', icon: QrCode, label: 'Staff Reports' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
