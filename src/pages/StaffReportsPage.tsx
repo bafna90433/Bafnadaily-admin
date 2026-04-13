@@ -56,24 +56,30 @@ const StaffReportsPage: React.FC = () => {
     }
   }
 
-  const handleBulkDownload = async () => {
+  const handleBulkDownload = async (format: 'png' | 'webp') => {
     const toDownload = reports.filter(r => selectedIds.includes(r._id))
     if (toDownload.length === 0) return toast.error('Select items to download')
     
-    toast.loading(`Starting download of ${toDownload.length} items...`)
+    toast.loading(`Starting download of ${toDownload.length} ${format.toUpperCase()} items...`)
     for (const report of toDownload) {
-      // Triggering browser downloads in sequence
-      const link = document.createElement('a')
-      link.href = report.imageUrl
-      link.setAttribute('download', `${report.productCode || 'report'}_${report._id}.png`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      // Small delay to prevent browser choke
-      await new Promise(r => setTimeout(r, 300))
+      try {
+        const response = await fetch(report.imageUrl)
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `${report.productCode || 'report'}_${report._id}.${format}`)
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        // Small delay to prevent browser choke
+        await new Promise(r => setTimeout(r, 400))
+      } catch (err) {
+        console.error('Bulk download error:', err)
+      }
     }
     toast.dismiss()
-    toast.success('Bulk download triggered')
+    toast.success(`${format.toUpperCase()} Bulk download complete`)
   }
 
   const toggleSelect = (id: string) => {
@@ -100,18 +106,27 @@ const StaffReportsPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           {selectedIds.length > 0 && (
-            <button 
-              onClick={handleBulkDownload}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-semibold shadow-lg shadow-slate-200"
-            >
-              <Download size={18} />
-              Download ({selectedIds.length})
-            </button>
+            <div className="flex items-center bg-gray-100 p-1 rounded-xl gap-1">
+              <button 
+                onClick={() => handleBulkDownload('png')}
+                className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-xs font-bold"
+              >
+                <FileDown size={14} />
+                PNG ({selectedIds.length})
+              </button>
+              <button 
+                onClick={() => handleBulkDownload('webp')}
+                className="flex items-center gap-2 px-3 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-all text-xs font-bold shadow-lg shadow-pink-100"
+              >
+                <Download size={14} />
+                WEBP ({selectedIds.length})
+              </button>
+            </div>
           )}
           <button 
             onClick={fetchReports}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-pink-50 text-primary rounded-xl hover:bg-pink-100 transition-colors font-semibold"
+            className="flex items-center gap-2 px-4 py-2 bg-pink-50 text-primary rounded-xl hover:bg-pink-100 transition-colors font-semibold shadow-sm"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             Refresh
