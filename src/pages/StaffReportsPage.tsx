@@ -36,7 +36,7 @@ const StaffReportsPage: React.FC = () => {
   
   const [showMoveModal, setShowMoveModal] = useState(false)
   const [isCopyMode, setIsCopyMode] = useState(false)
-  const [allFolders, setAllFolders] = useState<StaffFolder[]>([])
+  const [allFoldersForPicker, setAllFoldersForPicker] = useState<StaffFolder[]>([])
 
   useEffect(() => {
     fetchData()
@@ -113,8 +113,8 @@ const StaffReportsPage: React.FC = () => {
 
   const openMovePicker = async (copy: boolean = false) => {
     setIsCopyMode(copy)
-    const { data } = await api.get('/staff-reports/folders')
-    setAllFolders(data.folders || [])
+    const { data } = await api.get('/staff-reports/folders?all=true')
+    setAllFoldersForPicker(data.folders || [])
     setShowMoveModal(true)
   }
 
@@ -232,68 +232,79 @@ const StaffReportsPage: React.FC = () => {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm"><RefreshCw className="animate-spin text-primary mb-4" size={32} /><p className="text-gray-500 font-medium">Scanning Repository...</p></div>
-      ) : (filteredReports.length === 0 && filteredFolders.length === 0) ? (
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-200 border-dashed opacity-40"><ImageIcon size={64} className="text-gray-300 mb-4" /><p className="text-gray-500 text-lg font-medium">Empty Folder</p></div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {/* Folders */}
-          {filteredFolders.map((folder) => (
-            <div 
-              key={folder._id} 
-              onDoubleClick={() => navigateToFolder(folder)}
-              className={`group bg-white rounded-2xl p-4 border transition-all cursor-pointer relative ${selectedFolderIds.includes(folder._id) ? 'ring-2 ring-primary border-primary bg-pink-50/30' : 'border-gray-100 hover:border-pink-200 hover:shadow-lg hover:shadow-pink-500/5'}`}
-            >
-              <button 
-                onClick={(e) => { e.stopPropagation(); toggleSelect(folder._id, true); }}
-                className={`absolute top-3 right-3 z-10 w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selectedFolderIds.includes(folder._id) ? 'bg-primary border-primary' : 'bg-white border-gray-200 opacity-0 group-hover:opacity-100'}`}
-              >
-                {selectedFolderIds.includes(folder._id) && <CheckSquare size={14} className="text-white" />}
-              </button>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
-                  <Folder size={24} fill="currentColor" fillOpacity={0.2} />
+        <div className="space-y-8">
+            {/* Folder Selection (Distinct List) */}
+            {filteredFolders.length > 0 && (
+                <div className="space-y-4">
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Sub-Directories</h3>
+                    <div className="flex flex-wrap gap-4">
+                        {filteredFolders.map((folder) => (
+                            <div 
+                                key={folder._id} 
+                                onDoubleClick={() => navigateToFolder(folder)}
+                                className={`group min-w-[200px] flex items-center justify-between bg-white rounded-xl p-3 border transition-all cursor-pointer ${selectedFolderIds.includes(folder._id) ? 'ring-2 ring-primary border-primary bg-pink-50' : 'border-gray-100 hover:border-pink-200 hover:shadow-md'}`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center text-green-500">
+                                        <Folder size={18} fill="currentColor" fillOpacity={0.2} />
+                                    </div>
+                                    <p className="font-bold text-gray-700">{folder.name}</p>
+                                </div>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); toggleSelect(folder._id, true); }}
+                                    className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selectedFolderIds.includes(folder._id) ? 'bg-primary border-primary' : 'bg-white border-gray-200 opacity-0 group-hover:opacity-100'}`}
+                                >
+                                    {selectedFolderIds.includes(folder._id) && <CheckSquare size={12} className="text-white" />}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900 truncate">{folder.name}</p>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">Directory</p>
-                </div>
-              </div>
-            </div>
-          ))}
+            )}
 
-          {/* Reports */}
-          {filteredReports.map((report) => (
-            <div 
-              key={report._id} 
-              className={`group bg-white rounded-2xl overflow-hidden border transition-all relative ${selectedIds.includes(report._id) ? 'ring-2 ring-primary border-primary' : 'border-gray-100 hover:border-pink-200 hover:shadow-xl shadow-sm'}`}
-            >
-              <button 
-                onClick={() => toggleSelect(report._id)}
-                className={`absolute top-3 left-3 z-10 w-6 h-6 rounded-lg shadow-md flex items-center justify-center border transition-all ${selectedIds.includes(report._id) ? 'bg-primary border-primary' : 'bg-white border-gray-100 opacity-0 group-hover:opacity-100'}`}
-              >
-                {selectedIds.includes(report._id) ? <CheckSquare size={16} className="text-white" /> : <Square size={16} className="text-gray-300" />}
-              </button>
-              
-              <div className="aspect-square bg-gray-50 overflow-hidden cursor-zoom-in" onClick={() => setPreviewImage(report.imageUrl)}>
-                <img src={report.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
-                {report.productCode && (
-                  <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-black border border-white/20">
-                    {report.productCode}
-                  </div>
+            {/* Media/Reports Section */}
+            <div className="space-y-4">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Media Files</h3>
+                {filteredReports.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-200 border-dashed opacity-40"><ImageIcon size={64} className="text-gray-300 mb-4" /><p className="text-gray-500 text-lg font-medium">No files in directory</p></div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    {filteredReports.map((report) => (
+                        <div 
+                        key={report._id} 
+                        className={`group bg-white rounded-2xl overflow-hidden border transition-all relative ${selectedIds.includes(report._id) ? 'ring-2 ring-primary border-primary' : 'border-gray-100 hover:border-pink-200 hover:shadow-xl shadow-sm'}`}
+                        >
+                        <button 
+                            onClick={() => toggleSelect(report._id)}
+                            className={`absolute top-3 left-3 z-10 w-6 h-6 rounded-lg shadow-md flex items-center justify-center border transition-all ${selectedIds.includes(report._id) ? 'bg-primary border-primary' : 'bg-white border-gray-100 opacity-0 group-hover:opacity-100'}`}
+                        >
+                            {selectedIds.includes(report._id) ? <CheckSquare size={16} className="text-white" /> : <Square size={16} className="text-gray-300" />}
+                        </button>
+                        
+                        <div className="aspect-square bg-gray-50 overflow-hidden cursor-zoom-in" onClick={() => setPreviewImage(report.imageUrl)}>
+                            <img src={report.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                            {report.productCode && (
+                            <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-black border border-white/20">
+                                {report.productCode}
+                            </div>
+                            )}
+                        </div>
+                        <div className="p-3">
+                            <div className="flex items-center gap-2 mb-3">
+                            <div className="w-7 h-7 bg-pink-50 rounded-full flex items-center justify-center text-primary"><User size={12}/></div>
+                            <p className="text-xs font-bold text-gray-700 truncate">{report.staffName}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50">
+                            <button onClick={() => handleDownload(report, 'webp')} className="flex-1 py-1.5 bg-primary text-white rounded-lg text-[10px] font-black hover:bg-pink-700 transition-colors">WEBP</button>
+                            <button onClick={() => handleDownload(report, 'png')} className="px-2 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold hover:bg-gray-200 transition-colors">PNG</button>
+                            </div>
+                        </div>
+                        </div>
+                    ))}
+                    </div>
                 )}
-              </div>
-              <div className="p-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 bg-pink-50 rounded-full flex items-center justify-center text-primary"><User size={12}/></div>
-                  <p className="text-xs font-bold text-gray-700 truncate">{report.staffName}</p>
-                </div>
-                <div className="flex items-center gap-1.5 pt-2 border-t border-gray-50">
-                  <button onClick={() => handleDownload(report, 'webp')} className="flex-1 py-1.5 bg-primary text-white rounded-lg text-[10px] font-black hover:bg-pink-700 transition-colors">WEBP</button>
-                  <button onClick={() => handleDownload(report, 'png')} className="px-2 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold hover:bg-gray-200 transition-colors">PNG</button>
-                </div>
-              </div>
             </div>
-          ))}
         </div>
       )}
 
@@ -331,17 +342,20 @@ const StaffReportsPage: React.FC = () => {
                   onClick={() => handleMoveCopy(null)}
                   className="w-full flex items-center gap-4 p-4 hover:bg-pink-50 rounded-2xl text-left group transition-all"
                 >
-                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-pink-100 group-hover:text-primary transition-colors"><Folder size={20}/></div>
+                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-pink-100 group-hover:text-primary transition-colors"><Package size={20}/></div>
                   <span className="font-bold text-gray-700 group-hover:text-primary">Root Directory</span>
                 </button>
-                {allFolders.map(f => (
+                {allFoldersForPicker.map(f => (
                   <button 
                     key={f._id}
                     onClick={() => handleMoveCopy(f._id)}
                     className="w-full flex items-center gap-4 p-4 hover:bg-pink-50 rounded-2xl text-left group transition-all"
                   >
                     <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-500 group-hover:bg-pink-100 group-hover:text-primary transition-colors"><Folder size={20}/></div>
-                    <span className="font-bold text-gray-700 group-hover:text-primary">{f.name}</span>
+                    <div>
+                        <span className="font-bold text-gray-700 group-hover:text-primary">{f.name}</span>
+                        <p className="text-[10px] text-gray-400 uppercase font-black">Directory</p>
+                    </div>
                   </button>
                 ))}
               </div>
