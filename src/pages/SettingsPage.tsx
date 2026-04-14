@@ -177,28 +177,68 @@ const SettingsPage: React.FC = () => {
 
           {/* ── HOMEPAGE SECTIONS ── */}
           {tab === 'homepage' && (
-            <div className="card p-6">
-              <h3 className="font-bold text-lg border-b pb-3 mb-5">Homepage Section Controls</h3>
-              <p className="text-sm text-gray-500 mb-5 bg-blue-50 border border-blue-200 rounded-xl p-3">
-                🎛️ Toggle each section on/off. Changes apply instantly on the frontend after saving.
-              </p>
-              <div className="space-y-3">
-                {Object.entries(SECTION_LABELS).map(([key, label]) => (
-                  <div key={key} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-colors ${settings.homepageSections?.[key] !== false ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                    <div>
-                      <p className="font-semibold text-sm">{label}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Section key: <code className="bg-gray-200 px-1 rounded text-xs">{key}</code></p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`badge ${settings.homepageSections?.[key] !== false ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {settings.homepageSections?.[key] !== false ? 'VISIBLE' : 'HIDDEN'}
-                      </span>
-                      <Toggle checked={settings.homepageSections?.[key] !== false} onChange={v => set(`homepageSections.${key}`, v)}/>
-                    </div>
-                  </div>
-                ))}
+            <>
+              {/* ── Layout Picker ── */}
+              <div className="card p-6 mb-5">
+                <h3 className="font-bold text-lg border-b pb-3 mb-5">🎨 Homepage Layout</h3>
+                <p className="text-sm text-gray-500 mb-5 bg-purple-50 border border-purple-200 rounded-xl p-3">
+                  Choose a homepage design. Each layout has a unique hero header & section ordering.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { id: 1, name: 'Classic Split', desc: 'Categories + Hero side by side', gradient: 'from-pink-50 to-purple-50', icon: '🏠' },
+                    { id: 2, name: 'Dark Premium', desc: 'Full-width dark hero with stats', gradient: 'from-gray-900 to-slate-800', icon: '🌙' },
+                    { id: 3, name: 'Minimalist', desc: 'Clean & elegant compact header', gradient: 'from-white to-gray-50', icon: '✨' },
+                    { id: 4, name: 'Full-Width Pro', desc: 'Edge-to-edge immersive design', gradient: 'from-indigo-900 to-purple-900', icon: '🚀' },
+                  ].map(l => (
+                    <button
+                      key={l.id}
+                      onClick={() => set('homeLayout', l.id)}
+                      className={`relative p-5 rounded-2xl border-2 text-left transition-all hover:shadow-md ${
+                        (settings.homeLayout || 1) === l.id
+                          ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {(settings.homeLayout || 1) === l.id && (
+                        <div className="absolute top-3 right-3 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs font-black">✓</span>
+                        </div>
+                      )}
+                      <div className={`w-full h-16 bg-gradient-to-r ${l.gradient} rounded-xl mb-3 flex items-center justify-center border border-gray-100`}>
+                        <span className="text-2xl">{l.icon}</span>
+                      </div>
+                      <p className="font-bold text-sm text-gray-800">Layout {l.id}: {l.name}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{l.desc}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+
+              {/* ── Section Toggle Controls ── */}
+              <div className="card p-6">
+                <h3 className="font-bold text-lg border-b pb-3 mb-5">Homepage Section Controls</h3>
+                <p className="text-sm text-gray-500 mb-5 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                  🎛️ Toggle each section on/off. Changes apply instantly on the frontend after saving.
+                </p>
+                <div className="space-y-3">
+                  {Object.entries(SECTION_LABELS).map(([key, label]) => (
+                    <div key={key} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-colors ${settings.homepageSections?.[key] !== false ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div>
+                        <p className="font-semibold text-sm">{label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Section key: <code className="bg-gray-200 px-1 rounded text-xs">{key}</code></p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`badge ${settings.homepageSections?.[key] !== false ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {settings.homepageSections?.[key] !== false ? 'VISIBLE' : 'HIDDEN'}
+                        </span>
+                        <Toggle checked={settings.homepageSections?.[key] !== false} onChange={v => set(`homepageSections.${key}`, v)}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
 
           {/* ── PAYMENTS ── */}
