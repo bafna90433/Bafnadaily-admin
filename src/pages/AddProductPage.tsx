@@ -7,14 +7,15 @@ import Barcode from 'react-barcode'
 
 interface FormState {
   name:string; description:string; shortDescription:string; price:string; mrp:string; stock:string; sku:string;
-  category:string; material:string; weight:string; tags:string; color:string;
+  category:string; material:string; weight:string; tags:string;
+  colors: { name: string; hex: string }[];
   isFeatured:boolean; isTrending:boolean; isNewArrival:boolean; isBestSeller:boolean; giftWrapping:boolean;
-  images: {url:string; fileId?:string}[];
+  images: {url:string; fileId?:string; colorName?:string}[];
   barcode: string;
   minQty: string;
 }
 
-const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',color:'',isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[], barcode: '', minQty: '1' }
+const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',colors:[],isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[], barcode: '', minQty: '1' }
 
 const AddProductPage: React.FC = () => {
   const { id } = useParams<{id:string}>()
@@ -30,7 +31,19 @@ const AddProductPage: React.FC = () => {
     if (isEdit) {
       api.get(`/products/by-id/${id}`).then(r => {
         const p = r.data.product
-        setForm({ ...INIT, ...p, price: String(p.price), mrp: String(p.mrp), stock: String(p.stock), minQty: String(p.minQty || 1), tags: p.tags?.join(',') || '', color: p.color?.join(',') || '', category: p.category?._id || p.category || '', images: p.images || [], barcode: p.barcode || '' })
+        setForm({ 
+          ...INIT, 
+          ...p, 
+          price: String(p.price), 
+          mrp: String(p.mrp), 
+          stock: String(p.stock), 
+          minQty: String(p.minQty || 1), 
+          tags: p.tags?.join(',') || '', 
+          colors: p.colors || [], 
+          category: p.category?._id || p.category || '', 
+          images: p.images || [], 
+          barcode: p.barcode || '' 
+        })
       }).catch(() => navigate('/products'))
     }
   }, [id])
@@ -56,11 +69,46 @@ const AddProductPage: React.FC = () => {
     if (!form.name || !form.price || !form.category) { toast.error('Fill required fields'); return }
     setLoading(true)
     try {
-      const payload = { ...form, price: Number(form.price), mrp: Number(form.mrp || form.price), stock: Number(form.stock || 0), minQty: Number(form.minQty || 1), tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [], color: form.color ? form.color.split(',').map(c=>c.trim()).filter(Boolean) : [] }
-      if (isEdit) { await api.put(`/products/${id}`, payload); toast.success('Product updated!') }
-      else { await api.post('/products', payload); toast.success('Product created!') }
+      const payload: any = { 
+        name: form.name,
+        description: form.description,
+        shortDescription: form.shortDescription,
+        price: Number(form.price), 
+        mrp: Number(form.mrp || form.price), 
+        stock: Number(form.stock || 0), 
+        minQty: Number(form.minQty || 1), 
+        sku: form.sku,
+        category: form.category,
+        material: form.material,
+        weight: Number(form.weight || 0),
+        ...(form.barcode ? { barcode: form.barcode } : {}),
+        isFeatured: form.isFeatured,
+        isTrending: form.isTrending,
+        isNewArrival: form.isNewArrival,
+        isBestSeller: form.isBestSeller,
+        giftWrapping: form.giftWrapping,
+        images: form.images.map(img => ({ url: img.url, fileId: img.fileId, colorName: img.colorName })),
+        colors: form.colors.filter(c => c.name).map(c => ({ name: c.name, hex: c.hex })),
+        tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : []
+      }
+      
+      console.log('Sending payload:', payload);
+
+      if (isEdit) { 
+        await api.put(`/products/${id}`, payload); 
+        toast.success('Product updated!'); 
+      }
+      else { 
+        await api.post('/products', payload); 
+        toast.success('Product created!'); 
+      }
       navigate('/products')
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Failed') } finally { setLoading(false) }
+    } catch (err: any) { 
+      console.error('Submit Error:', err.response?.data || err.message);
+      toast.error(err.response?.data?.message || 'Failed to save product. Check console for details.'); 
+    } finally { 
+      setLoading(false); 
+    }
   }
 
   const generateBarcode = () => {
@@ -150,7 +198,35 @@ const AddProductPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Tags (comma separated)</label><input value={form.tags} onChange={e=>set('tags',e.target.value)} className="input" placeholder="cute,anime,gift,keychain"/></div>
-                <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Colors (comma separated)</label><input value={form.color} onChange={e=>set('color',e.target.value)} className="input" placeholder="Pink,Black,Blue"/></div>
+              </div>
+
+              {/* Advanced Colors */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide">Product Colors</label>
+                  <button type="button" onClick={() => set('colors', [...form.colors, { name: '', hex: '#000000' }])} className="text-xs font-bold text-primary hover:underline">+ Add Color</button>
+                </div>
+                <div className="space-y-3">
+                  {form.colors.map((c, i) => (
+                    <div key={i} className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <div className="flex-1">
+                        <input value={c.name} onChange={e => {
+                          const newColors = [...form.colors]; newColors[i].name = e.target.value; set('colors', newColors)
+                        }} className="input-sm w-full bg-white" placeholder="Color Name (e.g. Ruby Red)"/>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={c.hex} onChange={e => {
+                          const newColors = [...form.colors]; newColors[i].hex = e.target.value; set('colors', newColors)
+                        }} className="w-8 h-8 rounded cursor-pointer p-0 border-0 bg-transparent"/>
+                        <input value={c.hex} onChange={e => {
+                          const newColors = [...form.colors]; newColors[i].hex = e.target.value; set('colors', newColors)
+                        }} className="input-sm w-24 bg-white font-mono text-xs uppercase" placeholder="#HEX"/>
+                      </div>
+                      <button type="button" onClick={() => set('colors', form.colors.filter((_, idx) => idx !== i))} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"><X size={16}/></button>
+                    </div>
+                  ))}
+                  {form.colors.length === 0 && <p className="text-xs text-gray-400 italic">No colors added yet.</p>}
+                </div>
               </div>
             </div>
 
@@ -159,12 +235,28 @@ const AddProductPage: React.FC = () => {
               <h3 className="font-bold text-gray-800 border-b pb-3 mb-4">Product Images <span className="text-gray-400 font-normal text-sm">(Uploaded to ImageKit CDN)</span></h3>
               <div className="flex flex-wrap gap-3">
                 {form.images.map((img, i) => (
-                  <div key={i} className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-gray-200 group">
-                    <img src={img.url} alt="" className="w-full h-full object-cover"/>
-                    <button type="button" onClick={() => removeImg(i)} className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <X size={20} className="text-white"/>
-                    </button>
-                    {i === 0 && <span className="absolute bottom-0 inset-x-0 text-center text-[9px] bg-primary text-white py-0.5 font-bold">MAIN</span>}
+                  <div key={i} className="relative w-32 h-40 rounded-xl overflow-hidden border-2 border-gray-200 group flex flex-col">
+                    <div className="relative flex-1">
+                      <img src={img.url} alt="" className="w-full h-full object-cover"/>
+                      <button type="button" onClick={() => removeImg(i)} className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <X size={20} className="text-white"/>
+                      </button>
+                      {i === 0 && <span className="absolute bottom-0 inset-x-0 text-center text-[9px] bg-primary text-white py-0.5 font-bold">MAIN</span>}
+                    </div>
+                    <div className="bg-gray-50 border-t p-1.5">
+                      <select 
+                        value={img.colorName || ''} 
+                        onChange={e => {
+                          const newImgs = [...form.images]; newImgs[i].colorName = e.target.value; set('images', newImgs)
+                        }}
+                        className="w-full text-[10px] font-bold bg-transparent border-0 outline-none cursor-pointer text-gray-600"
+                      >
+                        <option value="">No Color</option>
+                        {form.colors.filter(c => c.name).map((c, ci) => (
+                          <option key={ci} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 ))}
                 <label className={`w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors ${uploading?'opacity-50 pointer-events-none':''}`}>
