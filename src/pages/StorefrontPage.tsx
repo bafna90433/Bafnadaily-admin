@@ -9,7 +9,8 @@ interface Banner {
   subtitle: string;
   image: string;
   link: string;
-  type: 'hero' | 'promo' | 'category';
+  type: 'hero' | 'promo' | 'category' | 'hanging';
+  isActive?: boolean;
   sortOrder: number;
 }
 
@@ -18,8 +19,9 @@ const StorefrontPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingHang, setUploadingHang] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  
+
   const [newBanner, setNewBanner] = useState<Banner>({
     title: '',
     subtitle: '',
@@ -28,6 +30,9 @@ const StorefrontPage: React.FC = () => {
     type: 'hero',
     sortOrder: 0
   });
+
+  const heroBanners = banners.filter(b => b.type !== 'hanging');
+  const hangingBanners = banners.filter(b => b.type === 'hanging');
 
   useEffect(() => {
     fetchBanners();
@@ -87,6 +92,32 @@ const StorefrontPage: React.FC = () => {
       fetchBanners();
     } catch {
       toast.error('Delete failed');
+    }
+  };
+
+  const handleHangingUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    setUploadingHang(true);
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append('images', file);
+        fd.append('folder', 'hanging');
+        const res = await api.post('/upload/images', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await api.post('/banners', {
+          title: '', subtitle: '', link: '/products',
+          image: res.data.images[0].url,
+          type: 'hanging', sortOrder: 0, isActive: true
+        });
+      }
+      toast.success(`${files.length} image(s) added!`);
+      fetchBanners();
+    } catch {
+      toast.error('Upload failed');
+    } finally {
+      setUploadingHang(false);
+      e.target.value = '';
     }
   };
 
@@ -164,6 +195,7 @@ const StorefrontPage: React.FC = () => {
                     <option value="hero">Hero (Home Slider)</option>
                     <option value="promo">Promo (Static Card)</option>
                     <option value="category">Category Special</option>
+                    <option value="hanging">Hanging Strip</option>
                   </select>
                 </div>
               </div>
@@ -250,6 +282,60 @@ const StorefrontPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* ── Hanging Images Section ─────────────────────────────────────── */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">🪢 Hanging Keychain Images</h2>
+            <p className="text-xs text-slate-500 mt-0.5">These images hang with a sway animation on the home screen hero section. Upload in 9:16 portrait ratio.</p>
+          </div>
+          <label className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm cursor-pointer transition-all active:scale-95 ${uploadingHang ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-primary text-white hover:shadow-lg'}`}>
+            {uploadingHang ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
+            {uploadingHang ? 'Uploading...' : 'Upload Images'}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              disabled={uploadingHang}
+              onChange={handleHangingUpload}
+            />
+          </label>
+        </div>
+
+        {hangingBanners.length === 0 ? (
+          <div className="border-2 border-dashed border-slate-200 rounded-2xl p-12 flex flex-col items-center text-center">
+            <ImageIcon className="text-slate-300 mb-3" size={40} />
+            <p className="font-bold text-slate-400">No hanging images yet</p>
+            <p className="text-xs text-slate-400 mt-1">Upload portrait images (9:16) to display in the hero section</p>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-4">
+            {hangingBanners.map((banner) => (
+              <div key={banner._id} className="relative group flex flex-col items-center">
+                {/* String decoration */}
+                <div style={{ width: '2px', height: '40px', background: 'linear-gradient(180deg,rgba(233,30,99,0.3),rgba(199,125,255,0.5))' }} className="mx-auto" />
+                {/* Image */}
+                <div
+                  className="rounded-2xl overflow-hidden shadow-md border-2 border-pink-100 relative"
+                  style={{ width: '90px', height: '160px' }}
+                >
+                  <img src={banner.image} alt="hanging" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button
+                      onClick={() => handleDelete(banner._id!)}
+                      className="p-2 bg-red-500 text-white rounded-xl hover:scale-110 transition-transform"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Featured Section Info */}
       <div className="bg-slate-800 p-8 rounded-[2rem] text-white overflow-hidden relative">
