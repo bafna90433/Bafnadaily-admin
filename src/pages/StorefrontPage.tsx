@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, Plus, Trash2, Image as ImageIcon, Loader2, Save, X, ExternalLink } from 'lucide-react';
+import { LayoutGrid, Plus, Trash2, Image as ImageIcon, Loader2, Save, X, ExternalLink, Pencil, Check, Eye, EyeOff, Smartphone, Globe } from 'lucide-react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 
@@ -11,8 +11,98 @@ interface Banner {
   link: string;
   type: 'hero' | 'promo' | 'category' | 'hanging';
   isActive?: boolean;
+  showOnMobile?: boolean;
+  showOnWebsite?: boolean;
   sortOrder: number;
 }
+
+// ── Per-card component for hanging images ─────────────────────────────────────
+const HangingCard: React.FC<{ banner: Banner; onDelete: (id: string) => void; onRefresh: () => void }> = ({ banner, onDelete, onRefresh }) => {
+  const [editing, setEditing] = useState(false);
+  const [label, setLabel] = useState(banner.title || '');
+  const [showMobile, setShowMobile] = useState(banner.showOnMobile !== false);
+  const [showWeb, setShowWeb] = useState(banner.showOnWebsite !== false);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/banners/${banner._id}`, { title: label, showOnMobile: showMobile, showOnWebsite: showWeb });
+      setEditing(false);
+      onRefresh();
+    } catch { } finally { setSaving(false); }
+  };
+
+  const toggleMobile = async () => {
+    const next = !showMobile;
+    setShowMobile(next);
+    try { await api.put(`/banners/${banner._id}`, { showOnMobile: next }); onRefresh(); } catch { setShowMobile(!next); }
+  };
+
+  const toggleWeb = async () => {
+    const next = !showWeb;
+    setShowWeb(next);
+    try { await api.put(`/banners/${banner._id}`, { showOnWebsite: next }); onRefresh(); } catch { setShowWeb(!next); }
+  };
+
+  const anyActive = showMobile || showWeb;
+
+  return (
+    <div className="flex flex-col items-center" style={{ width: 105 }}>
+      {/* Rope string */}
+      <div style={{ width: 2, height: 36, background: 'linear-gradient(180deg,#f43f8e,#c084fc)', borderRadius: 1 }} />
+      {/* Card */}
+      <div className={`rounded-2xl overflow-hidden shadow-md border-2 transition-all ${
+        anyActive ? 'border-pink-200' : 'border-slate-200 opacity-50'
+      }`} style={{ width: 100 }}>
+        <img src={banner.image} alt="hanging" className="w-full object-cover" style={{ height: 140 }} />
+        {/* Label badge below image */}
+        {label && <div className="bg-pink-500 text-white text-[10px] font-black text-center py-1 px-2">{label}</div>}
+      </div>
+      {/* Action bar */}
+      <div className="flex flex-col gap-2 mt-2 w-full px-1">
+        {editing ? (
+          <div className="flex flex-col gap-1">
+            <input
+              autoFocus
+              value={label}
+              onChange={e => setLabel(e.target.value)}
+              placeholder="Label"
+              className="border border-pink-300 rounded-lg px-2 py-1 text-[10px] w-full outline-none focus:border-pink-500"
+            />
+            <div className="flex gap-1 justify-center">
+              <button onClick={save} disabled={saving} className="p-1 bg-green-500 text-white rounded-lg hover:bg-green-600 flex-1 flex justify-center">
+                {saving ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+              </button>
+              <button onClick={() => { setLabel(banner.title || ''); setEditing(false); }} className="p-1 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 flex-1 flex justify-center">
+                <X size={10} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-1">
+            <button onClick={() => setEditing(true)} title="Edit label" className="p-1 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-100 flex-1 flex justify-center">
+              <Pencil size={12} />
+            </button>
+            <button onClick={toggleMobile} title={showMobile ? 'Hide on Mobile' : 'Show on Mobile'} className={`p-1 rounded-lg transition-colors flex-1 flex justify-center ${
+              showMobile ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-100 text-gray-400'
+            }`}>
+              <Smartphone size={12} />
+            </button>
+            <button onClick={toggleWeb} title={showWeb ? 'Hide on Website' : 'Show on Website'} className={`p-1 rounded-lg transition-colors flex-1 flex justify-center ${
+              showWeb ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'
+            }`}>
+              <Globe size={12} />
+            </button>
+            <button onClick={() => onDelete(banner._id!)} title="Delete" className="p-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 flex-1 flex justify-center">
+              <Trash2 size={12} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const StorefrontPage: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -28,6 +118,8 @@ const StorefrontPage: React.FC = () => {
     image: '',
     link: '',
     type: 'hero',
+    showOnMobile: true,
+    showOnWebsite: true,
     sortOrder: 0
   });
 
@@ -288,19 +380,12 @@ const StorefrontPage: React.FC = () => {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-slate-800">🪢 Hanging Keychain Images</h2>
-            <p className="text-xs text-slate-500 mt-0.5">These images hang with a sway animation on the home screen hero section. Upload in 9:16 portrait ratio.</p>
+            <p className="text-xs text-slate-500 mt-0.5">These images hang with a sway animation on the home screen. Upload portrait images (9:16 ratio).</p>
           </div>
           <label className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm cursor-pointer transition-all active:scale-95 ${uploadingHang ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-primary text-white hover:shadow-lg'}`}>
             {uploadingHang ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
             {uploadingHang ? 'Uploading...' : 'Upload Images'}
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              disabled={uploadingHang}
-              onChange={handleHangingUpload}
-            />
+            <input type="file" accept="image/*" multiple className="hidden" disabled={uploadingHang} onChange={handleHangingUpload} />
           </label>
         </div>
 
@@ -311,27 +396,9 @@ const StorefrontPage: React.FC = () => {
             <p className="text-xs text-slate-400 mt-1">Upload portrait images (9:16) to display in the hero section</p>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-5">
             {hangingBanners.map((banner) => (
-              <div key={banner._id} className="relative group flex flex-col items-center">
-                {/* String decoration */}
-                <div style={{ width: '2px', height: '40px', background: 'linear-gradient(180deg,rgba(233,30,99,0.3),rgba(199,125,255,0.5))' }} className="mx-auto" />
-                {/* Image */}
-                <div
-                  className="rounded-2xl overflow-hidden shadow-md border-2 border-pink-100 relative"
-                  style={{ width: '90px', height: '160px' }}
-                >
-                  <img src={banner.image} alt="hanging" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button
-                      onClick={() => handleDelete(banner._id!)}
-                      className="p-2 bg-red-500 text-white rounded-xl hover:scale-110 transition-transform"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <HangingCard key={banner._id} banner={banner} onDelete={handleDelete} onRefresh={fetchBanners} />
             ))}
           </div>
         )}

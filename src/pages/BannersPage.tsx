@@ -74,8 +74,22 @@ const BannersPage: React.FC = () => {
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white"><h2 className="font-bold text-lg">{editing?'Edit':'New'} Banner</h2><button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button></div>
             <form onSubmit={save} className="p-5 space-y-4">
-              <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Title *</label><input value={form.title} onChange={e => setForm(f=>({...f,title:e.target.value}))} className="input" required/></div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Subtitle</label><input value={form.subtitle} onChange={e => setForm(f=>({...f,subtitle:e.target.value}))} className="input"/></div>
+              {/* Title / Label field */}
+              {form.type === 'hanging' ? (
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5">📌 Price Label <span className="text-pink-500">(shown on app tag)</span></label>
+                  <input
+                    value={form.title}
+                    onChange={e => setForm(f=>({...f,title:e.target.value}))}
+                    className="input"
+                    placeholder="e.g. Under ₹99   or   Under ₹30"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">✏️ Ye text keychain ke neeche app mein show hoga. Example: <strong>Under ₹99</strong></p>
+                </div>
+              ) : (
+                <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Title *</label><input value={form.title} onChange={e => setForm(f=>({...f,title:e.target.value}))} className="input" required/></div>
+              )}
+              {form.type !== 'hanging' && <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Subtitle</label><input value={form.subtitle} onChange={e => setForm(f=>({...f,subtitle:e.target.value}))} className="input"/></div>}
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1.5">Banner Image</label>
                 {form.image && <img src={form.image} alt="" className="h-32 w-full object-cover rounded-xl mb-2 border"/>}
@@ -88,7 +102,7 @@ const BannersPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Type</label>
                   <select value={form.type} onChange={e => setForm(f=>({...f,type:e.target.value}))} className="input">
-                    {['hero','promo','category'].map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+                    {['hero','promo','category','hanging'].map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
                   </select>
                 </div>
                 <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Sort Order</label><input type="number" value={form.sortOrder} onChange={e => setForm(f=>({...f,sortOrder:Number(e.target.value)}))} className="input"/></div>

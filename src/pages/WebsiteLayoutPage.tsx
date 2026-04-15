@@ -285,7 +285,7 @@ const WebsiteLayoutPage: React.FC = () => {
 
   useEffect(() => {
     api.get('/settings').then(r => {
-      setActiveLayout(r.data.settings?.homeLayout || 1)
+      setActiveLayout(r.data.settings?.websiteLayout || 1)
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
@@ -293,7 +293,7 @@ const WebsiteLayoutPage: React.FC = () => {
     if (id === activeLayout || saving) return
     setSaving(true)
     try {
-      await api.put('/settings', { homeLayout: id })
+      await api.put('/settings', { websiteLayout: id })
       setActiveLayout(id)
       toast.success(`Layout ${id} — ${LAYOUTS[id-1].name} applied! 🎨`)
     } catch {

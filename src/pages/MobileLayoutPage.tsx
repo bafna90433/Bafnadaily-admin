@@ -183,7 +183,7 @@ const MobileLayoutPage: React.FC = () => {
 
   useEffect(() => {
     api.get('/settings').then(r => {
-      setActiveLayout(r.data.settings?.homeLayout || 1)
+      setActiveLayout(r.data.settings?.mobileLayout || 1)
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
@@ -191,7 +191,7 @@ const MobileLayoutPage: React.FC = () => {
     if (id === activeLayout) return
     setSaving(true)
     try {
-      await api.put('/settings', { homeLayout: id })
+      await api.put('/settings', { mobileLayout: id })
       setActiveLayout(id)
       toast.success(`Layout ${id} applied!`)
     } catch {
