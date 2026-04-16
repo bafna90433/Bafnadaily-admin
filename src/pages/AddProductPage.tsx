@@ -13,9 +13,11 @@ interface FormState {
   images: {url:string; fileId?:string; colorName?:string}[];
   barcode: string;
   minQty: string;
+  perPiecePrice: string;
+  perPacketText: string;
 }
 
-const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',colors:[],isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[], barcode: '', minQty: '1' }
+const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',colors:[],isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[], barcode: '', minQty: '1', perPiecePrice: '', perPacketText: '' }
 
 const AddProductPage: React.FC = () => {
   const { id } = useParams<{id:string}>()
@@ -42,7 +44,9 @@ const AddProductPage: React.FC = () => {
           colors: p.colors || [], 
           category: p.category?._id || p.category || '', 
           images: p.images || [], 
-          barcode: p.barcode || '' 
+          barcode: p.barcode || '',
+          perPiecePrice: p.perPiecePrice || '',
+          perPacketText: p.perPacketText || ''
         })
       }).catch(() => navigate('/products'))
     }
@@ -89,7 +93,9 @@ const AddProductPage: React.FC = () => {
         giftWrapping: form.giftWrapping,
         images: form.images.map(img => ({ url: img.url, fileId: img.fileId, colorName: img.colorName })),
         colors: form.colors.filter(c => c.name).map(c => ({ name: c.name, hex: c.hex })),
-        tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : []
+        tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [],
+        perPiecePrice: form.perPiecePrice,
+        perPacketText: form.perPacketText
       }
       
       console.log('Sending payload:', payload);
@@ -282,6 +288,16 @@ const AddProductPage: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Min Order Qty (MQ) 📦</label>
                 <input type="number" value={form.minQty} onChange={e=>set('minQty',e.target.value)} className="input" placeholder="1" min="1"/>
                 <p className="text-xs text-gray-400 mt-1">e.g. Set 3 → customer must buy min 3 pcs</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Per Piece Price</label>
+                  <input value={form.perPiecePrice} onChange={e=>set('perPiecePrice',e.target.value)} className="input" placeholder="e.g. ₹22.00"/>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Per Packet Text</label>
+                  <input value={form.perPacketText} onChange={e=>set('perPacketText',e.target.value)} className="input" placeholder="e.g. Pack of 4"/>
+                </div>
               </div>
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">SKU</label><input value={form.sku} onChange={e=>set('sku',e.target.value)} className="input" placeholder="RET-KEY-001"/></div>
               <div className="pt-2 border-t mt-4">
