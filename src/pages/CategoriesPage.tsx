@@ -5,8 +5,8 @@ import toast from 'react-hot-toast'
 
 const ICONS = ['🔑','👗','👜','💄','🎁','💕','🛍️','💍','👒','🎀','🧣','💎','🪄','🌸','🦋']
 
-interface CatForm { name:string; description:string; icon:string; isActive:boolean; featured:boolean; sortOrder:number }
-const CINIT: CatForm = { name:'',description:'',icon:'🎁',isActive:true,featured:false,sortOrder:0 }
+interface CatForm { name:string; description:string; icon:string; isActive:boolean; featured:boolean; sortOrder:number; parent:string; layoutType:string; isDashboardMain:boolean }
+const CINIT: CatForm = { name:'',description:'',icon:'🎁',isActive:true,featured:false,sortOrder:0, parent:'', layoutType:'standard', isDashboardMain: false }
 
 const CategoriesPage: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([])
@@ -20,8 +20,11 @@ const CategoriesPage: React.FC = () => {
   // Image upload states
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null)
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const bannerInputRef = useRef<HTMLInputElement>(null)
 
   const fetchCats = () => {
     setLoading(true)
@@ -31,9 +34,21 @@ const CategoriesPage: React.FC = () => {
 
   const openEdit = (cat: any) => {
     setEditing(cat)
-    setForm({ name:cat.name, description:cat.description||'', icon:cat.icon||'🎁', isActive:cat.isActive, featured:cat.featured, sortOrder:cat.sortOrder||0 })
+    setForm({ 
+      name:cat.name, 
+      description:cat.description||'', 
+      icon:cat.icon||'🎁', 
+      isActive:cat.isActive, 
+      featured:cat.featured, 
+      sortOrder:cat.sortOrder||0,
+      parent: cat.parent?._id || cat.parent || '',
+      layoutType: cat.layoutType || 'standard',
+      isDashboardMain: cat.isDashboardMain || false
+    })
     setImagePreview(cat.image || null)
     setImageFile(null)
+    setBannerPreview(cat.banner || null)
+    setBannerFile(null)
     setOpen(true)
   }
   const openAdd = () => {
@@ -41,6 +56,8 @@ const CategoriesPage: React.FC = () => {
     setForm(CINIT)
     setImagePreview(null)
     setImageFile(null)
+    setBannerPreview(null)
+    setBannerFile(null)
     setOpen(true)
   }
 
@@ -109,6 +126,23 @@ const CategoriesPage: React.FC = () => {
           toast.success('Image uploaded!')
         } catch {
           toast.error('Image upload failed')
+        } finally {
+          setUploading(false)
+        }
+      }
+
+      // Upload banner if selected
+      if (bannerFile && savedCat?._id) {
+        setUploading(true)
+        try {
+          const fd = new FormData()
+          fd.append('banner', bannerFile)
+          await api.post(`/categories/${savedCat._id}/upload-banner`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          })
+          toast.success('Banner uploaded!')
+        } catch {
+          toast.error('Banner upload failed')
         } finally {
           setUploading(false)
         }
@@ -227,8 +261,11 @@ const CategoriesPage: React.FC = () => {
                       <span className="text-[9px] px-1.5 py-0.5 bg-yellow-100 text-yellow-600 rounded-full font-bold">Featured</span>
                     )}
                     <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
-                      {cat.isActive ? 'Active' : 'Inactive'}
+                    {cat.isActive ? 'Active' : 'Inactive'}
                     </span>
+                    {cat.isDashboardMain && (
+                      <span className="text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold">Dashboard Side</span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 truncate mt-0.5">{cat.description || 'No description'}</p>
                 </div>
@@ -300,6 +337,30 @@ const CategoriesPage: React.FC = () => {
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange}/>
               </div>
 
+              {/* Banner Upload */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-2">Category Banner (For Landing Page)</label>
+                <div className="flex flex-col gap-2">
+                  <div className="w-full h-24 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50">
+                    {bannerPreview
+                      ? <img src={bannerPreview} alt="banner" className="w-full h-full object-cover"/>
+                      : <div className="text-gray-300 text-xs font-bold">No Banner Selected</div>
+                    }
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => bannerInputRef.current?.click()}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors w-full justify-center"
+                  >
+                    <Upload size={14}/>
+                    {bannerPreview ? 'Change Banner' : 'Upload Banner'}
+                  </button>
+                  <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={e => {
+                    const f = e.target.files?.[0]; if (f) { setBannerFile(f); setBannerPreview(URL.createObjectURL(f)); }
+                  }}/>
+                </div>
+              </div>
+
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Name *</label><input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} className="input" required/></div>
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Description</label><textarea value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} className="input resize-none" rows={2}/></div>
 
@@ -313,11 +374,30 @@ const CategoriesPage: React.FC = () => {
 
               <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Sort Order</label><input type="number" value={form.sortOrder} onChange={e => setForm(f=>({...f,sortOrder:Number(e.target.value)}))} className="input"/></div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5">Parent Category</label>
+                  <select value={form.parent} onChange={e => setForm(f=>({...f,parent:e.target.value}))} className="input">
+                    <option value="">None (Top Level)</option>
+                    {categories.filter(c => c._id !== editing?._id).map(c => (
+                      <option key={c._id} value={c._id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5">Display Layout</label>
+                  <select value={form.layoutType} onChange={e => setForm(f=>({...f,layoutType:e.target.value}))} className="input">
+                    <option value="standard">Standard Grid</option>
+                    <option value="hanging">Hanging (Keychain Style)</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="flex gap-6">
-                {[['isActive','Active'],['featured','Featured on Homepage']].map(([k,l]) => (
+                {[['isActive','Active'],['featured','Featured'], ['isDashboardMain', 'Show on Dashboard Side']].map(([k,l]) => (
                   <label key={k} className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form[k as keyof CatForm] as boolean} onChange={e => setForm(f=>({...f,[k]:e.target.checked}))} className="accent-primary w-4 h-4"/>
-                    <span className="text-sm">{l}</span>
+                    <span className="text-sm whitespace-nowrap">{l}</span>
                   </label>
                 ))}
               </div>

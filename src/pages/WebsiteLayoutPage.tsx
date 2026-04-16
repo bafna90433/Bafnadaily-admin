@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Monitor, Check, Loader2, Layers, Sparkles, Crown, Heart } from 'lucide-react'
+import { Monitor, Check, Loader2, Layers, Sparkles, Crown, Heart, LayoutGrid } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -251,6 +251,23 @@ const Preview4 = () => (
   </div>
 )
 
+// ── Layout Preview 5: Category Dashboard ─────────────────────────────────────
+const Preview5 = () => (
+  <div className="w-full h-full flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-4 bg-white border-b flex flex-col items-center justify-center gap-0.5">
+       <div className="w-12 h-1.5 bg-primary/20 rounded"/>
+    </div>
+    <div className="grid grid-cols-4 gap-2 p-3">
+      {[0,1,2,3,4,5,6,7,8,9,10,11].map(i => (
+        <div key={i} className="aspect-square bg-white rounded-xl border border-gray-100 flex flex-col items-center justify-center p-1">
+          <div className="w-6 h-6 bg-gray-100 rounded-lg mb-1" />
+          <div className="w-8 h-1 bg-gray-200 rounded" />
+        </div>
+      ))}
+    </div>
+  </div>
+)
+
 // ── Layouts config ────────────────────────────────────────────────────────────
 const LAYOUTS = [
   {
@@ -288,6 +305,15 @@ const LAYOUTS = [
     description: 'Soft pink-purple gradient, full-width banner slider, 5-column product grid. Perfect for keychains & women\'s fashion!',
     accent: '#EC4899',
     preview: <Preview4 />,
+  },
+  {
+    id: 5,
+    name: 'Dashboard',
+    icon: LayoutGrid,
+    tagline: 'Category Focused',
+    description: '16-slot category grid dashboard. Best for wholesale stores with clear product categories.',
+    accent: '#8B5CF6',
+    preview: <Preview5 />,
   },
 ]
 

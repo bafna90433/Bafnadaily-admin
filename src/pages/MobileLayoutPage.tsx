@@ -174,6 +174,30 @@ const LAYOUTS = [
       </div>
     ),
   },
+  {
+    id: 4,
+    name: 'Dashboard',
+    icon: LayoutGrid,
+    tagline: 'Category Focused',
+    description: '2-column category grid dashboard. Best for apps with clear hierarchical navigation.',
+    accent: '#8B5CF6',
+    preview: (
+      <div className="w-full h-full bg-gray-50 flex flex-col overflow-hidden">
+        <div className="bg-white p-2 border-b flex flex-col items-center">
+          <div className="w-16 h-3 bg-primary/20 rounded-full mb-1" />
+          <div className="w-12 h-1 bg-gray-200 rounded-full" />
+        </div>
+        <div className="grid grid-cols-2 gap-2 p-3">
+          {[0,1,2,3,4,5,6,7].map(i => (
+            <div key={i} className="aspect-square bg-white rounded-2xl border border-gray-100 flex flex-col items-center justify-center p-2">
+              <div className="w-8 h-8 bg-gray-100 rounded-lg mb-1" />
+              <div className="w-10 h-1 bg-gray-300 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
 ]
 
 const MobileLayoutPage: React.FC = () => {
