@@ -103,13 +103,18 @@ const CategoriesPage: React.FC = () => {
     e.preventDefault()
     setSaving(true)
     try {
+      const finalData = { 
+        ...form, 
+        parent: form.parent === '' ? null : form.parent 
+      }
+      
       let savedCat: any
       if (editing) {
-        const res = await api.put(`/categories/${editing._id}`, form)
+        const res = await api.put(`/categories/${editing._id}`, finalData)
         savedCat = res.data.category
         toast.success('Updated!')
       } else {
-        const res = await api.post('/categories', form)
+        const res = await api.post('/categories', finalData)
         savedCat = res.data.category
         toast.success('Category created!')
       }
