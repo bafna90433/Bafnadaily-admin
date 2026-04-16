@@ -3,10 +3,10 @@ import { Plus, Pencil, Trash2, Upload, ImageOff, Loader2, ChevronUp, ChevronDown
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
-const ICONS = ['🔑','👗','👜','💄','🎁','💕','🛍️','💍','👒','🎀','🧣','💎','🪄','🌸','🦋']
+const ICONS = ['🔑', '👗', '👜', '💄', '🎁', '💕', '🛍️', '💍', '👒', '🎀', '🧣', '💎', '🪄', '🌸', '🦋']
 
-interface CatForm { name:string; description:string; icon:string; isActive:boolean; featured:boolean; sortOrder:number; parent:string; layoutType:string; isDashboardMain:boolean }
-const CINIT: CatForm = { name:'',description:'',icon:'🎁',isActive:true,featured:false,sortOrder:0, parent:'', layoutType:'standard', isDashboardMain: false }
+interface CatForm { name: string; description: string; icon: string; isActive: boolean; featured: boolean; sortOrder: number; parent: string; layoutType: string; isDashboardMain: boolean }
+const CINIT: CatForm = { name: '', description: '', icon: '🎁', isActive: true, featured: false, sortOrder: 0, parent: '', layoutType: 'standard', isDashboardMain: false }
 
 const CategoriesPage: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([])
@@ -34,13 +34,13 @@ const CategoriesPage: React.FC = () => {
 
   const openEdit = (cat: any) => {
     setEditing(cat)
-    setForm({ 
-      name:cat.name, 
-      description:cat.description||'', 
-      icon:cat.icon||'🎁', 
-      isActive:cat.isActive, 
-      featured:cat.featured, 
-      sortOrder:cat.sortOrder||0,
+    setForm({
+      name: cat.name,
+      description: cat.description || '',
+      icon: cat.icon || '🎁',
+      isActive: cat.isActive,
+      featured: cat.featured,
+      sortOrder: cat.sortOrder || 0,
       parent: cat.parent?._id || cat.parent || '',
       layoutType: cat.layoutType || 'standard',
       isDashboardMain: cat.isDashboardMain || false
@@ -83,8 +83,8 @@ const CategoriesPage: React.FC = () => {
     const swapIndex = direction === 'up' ? index - 1 : index + 1
     if (swapIndex < 0 || swapIndex >= newList.length) return
 
-    // Swap in local state immediately (optimistic)
-    ;[newList[index], newList[swapIndex]] = [newList[swapIndex], newList[index]]
+      // Swap in local state immediately (optimistic)
+      ;[newList[index], newList[swapIndex]] = [newList[swapIndex], newList[index]]
 
     // Reassign sortOrder based on new position
     const updated = newList.map((cat, i) => ({ ...cat, sortOrder: i }))
@@ -112,11 +112,11 @@ const CategoriesPage: React.FC = () => {
     e.preventDefault()
     setSaving(true)
     try {
-      const finalData = { 
-        ...form, 
-        parent: form.parent === '' ? null : form.parent 
+      const finalData = {
+        ...form,
+        parent: form.parent === '' ? null : form.parent
       }
-      
+
       let savedCat: any
       if (editing) {
         const res = await api.put(`/categories/${editing._id}`, finalData)
@@ -176,8 +176,6 @@ const CategoriesPage: React.FC = () => {
     try { await api.delete(`/categories/${id}`); toast.success('Deleted'); fetchCats() } catch { toast.error('Failed') }
   }
 
-    }
-  }
 
   // Helper to group categories recursively
   const mainCategories = categories.filter(c => !c.parent || c.parent === '')
@@ -186,14 +184,13 @@ const CategoriesPage: React.FC = () => {
   const renderCategoryItem = (cat: any, index: number, isSub: boolean = false) => (
     <div
       key={cat._id}
-      className={`card p-3 flex items-center gap-3 transition-all duration-200 ${
-        movingId === cat._id ? 'opacity-60 scale-[0.99]' : 'hover:shadow-md'
-      } ${isSub ? 'ml-12 border-l-4 border-primary/20 bg-gray-50/30' : ''}`}
+      className={`card p-3 flex items-center gap-3 transition-all duration-200 ${movingId === cat._id ? 'opacity-60 scale-[0.99]' : 'hover:shadow-md'
+        } ${isSub ? 'ml-12 border-l-4 border-primary/20 bg-gray-50/30' : ''}`}
     >
       {/* Order Badge */}
       <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-6">
         <span className="text-[10px] font-bold text-gray-300">#{index + 1}</span>
-        <GripVertical size={13} className="text-gray-300"/>
+        <GripVertical size={13} className="text-gray-300" />
       </div>
 
       {/* Move Buttons */}
@@ -201,27 +198,25 @@ const CategoriesPage: React.FC = () => {
         <button
           onClick={() => moveCategory(index, 'up')}
           disabled={index === 0 || movingId !== null}
-          className={`p-1 rounded-lg transition-all ${
-            index === 0 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-primary hover:bg-primary/10'
-          }`}
+          className={`p-1 rounded-lg transition-all ${index === 0 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-primary hover:bg-primary/10'
+            }`}
         >
-          <ChevronUp size={16}/>
+          <ChevronUp size={16} />
         </button>
         <button
           onClick={() => moveCategory(index, 'down')}
           disabled={index === categories.length - 1 || movingId !== null}
-          className={`p-1 rounded-lg transition-all ${
-            index === categories.length - 1 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-primary hover:bg-primary/10'
-          }`}
+          className={`p-1 rounded-lg transition-all ${index === categories.length - 1 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-primary hover:bg-primary/10'
+            }`}
         >
-          <ChevronDown size={16}/>
+          <ChevronDown size={16} />
         </button>
       </div>
 
       {/* Image / Icon */}
       <div className="relative flex-shrink-0 group/img">
         {cat.image ? (
-          <img src={cat.image} alt={cat.name} className="w-12 h-12 rounded-xl object-cover border border-gray-100"/>
+          <img src={cat.image} alt={cat.name} className="w-12 h-12 rounded-xl object-cover border border-gray-100" />
         ) : (
           <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-xl">
             {cat.icon || '🎁'}
@@ -231,7 +226,7 @@ const CategoriesPage: React.FC = () => {
           className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer"
           title="Change Image"
         >
-          <Upload size={12} className="text-white"/>
+          <Upload size={12} className="text-white" />
           <input type="file" accept="image/*" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) uploadImageForCat(cat, f) }}
           />
@@ -268,19 +263,19 @@ const CategoriesPage: React.FC = () => {
       {/* Action Buttons */}
       <div className="flex gap-1 flex-shrink-0">
         {!isSub && (
-          <button 
-            onClick={() => openAddSub(cat._id)} 
-            className="p-1.5 text-primary hover:bg-primary/10 rounded-lg flex items-center gap-1 text-[10px] font-bold" 
+          <button
+            onClick={() => openAddSub(cat._id)}
+            className="p-1.5 text-primary hover:bg-primary/10 rounded-lg flex items-center gap-1 text-[10px] font-bold"
             title="Add Sub-category"
           >
-            <Plus size={14}/> SUB
+            <Plus size={14} /> SUB
           </button>
         )}
         <button onClick={() => openEdit(cat)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="Edit">
-          <Pencil size={14}/>
+          <Pencil size={14} />
         </button>
         <button onClick={() => del(cat._id, cat.name)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete">
-          <Trash2 size={14}/>
+          <Trash2 size={14} />
         </button>
       </div>
     </div>
@@ -294,21 +289,21 @@ const CategoriesPage: React.FC = () => {
           <h1 className="text-2xl font-bold">Categories</h1>
           <p className="text-gray-500 text-sm">{categories.length} categories · drag ↑↓ to reorder</p>
         </div>
-        <button onClick={openAdd} className="btn-primary"><Plus size={17}/> Add Category</button>
+        <button onClick={openAdd} className="btn-primary"><Plus size={17} /> Add Category</button>
       </div>
 
       {/* Category List */}
       <div className="flex flex-col gap-3">
         {loading
-          ? Array(5).fill(0).map((_, i) => <div key={i} className="h-20 skeleton rounded-xl"/>)
+          ? Array(5).fill(0).map((_, i) => <div key={i} className="h-20 skeleton rounded-xl" />)
           : mainCategories.map((cat, index) => (
-              <React.Fragment key={cat._id}>
-                {renderCategoryItem(cat, index, false)}
-                {getSubCategories(cat._id).map((sub, sIdx) => (
-                  renderCategoryItem(sub, sIdx, true)
-                ))}
-              </React.Fragment>
-            ))
+            <React.Fragment key={cat._id}>
+              {renderCategoryItem(cat, index, false)}
+              {getSubCategories(cat._id).map((sub, sIdx) => (
+                renderCategoryItem(sub, sIdx, true)
+              ))}
+            </React.Fragment>
+          ))
         }
       </div>
 
@@ -317,7 +312,7 @@ const CategoriesPage: React.FC = () => {
         <div className="text-center py-16 text-gray-400">
           <p className="text-4xl mb-3">📂</p>
           <p className="font-medium">No categories yet</p>
-          <button onClick={openAdd} className="btn-primary mt-4"><Plus size={15}/> Add First Category</button>
+          <button onClick={openAdd} className="btn-primary mt-4"><Plus size={15} /> Add First Category</button>
         </div>
       )}
 
@@ -337,8 +332,8 @@ const CategoriesPage: React.FC = () => {
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 flex-shrink-0">
                     {imagePreview
-                      ? <img src={imagePreview} alt="preview" className="w-full h-full object-cover"/>
-                      : <ImageOff size={24} className="text-gray-300"/>
+                      ? <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+                      : <ImageOff size={24} className="text-gray-300" />
                     }
                   </div>
                   <div className="flex-1">
@@ -347,7 +342,7 @@ const CategoriesPage: React.FC = () => {
                       onClick={() => fileInputRef.current?.click()}
                       className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors w-full justify-center"
                     >
-                      <Upload size={15}/>
+                      <Upload size={15} />
                       {imagePreview ? 'Change Image' : 'Upload Image'}
                     </button>
                     {imageFile && <p className="text-xs text-gray-400 mt-1.5 truncate text-center">{imageFile.name}</p>}
@@ -355,16 +350,16 @@ const CategoriesPage: React.FC = () => {
                     <p className="text-[10px] text-gray-400 mt-1 text-center">JPG, PNG, WEBP — max 10MB</p>
                   </div>
                 </div>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange}/>
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
               </div>
 
               {/* Banner Upload */}
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-2">Category Banner (For Landing Page)</label>
                 <div className="flex flex-col gap-2">
-                  <div className="w-full h-24 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50">
+                  <div className="w-full aspect-[21/9] rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50">
                     {bannerPreview
-                      ? <img src={bannerPreview} alt="banner" className="w-full h-full object-cover"/>
+                      ? <img src={bannerPreview} alt="banner" className="w-full h-full object-cover" />
                       : <div className="text-gray-300 text-xs font-bold">No Banner Selected</div>
                     }
                   </div>
@@ -373,32 +368,32 @@ const CategoriesPage: React.FC = () => {
                     onClick={() => bannerInputRef.current?.click()}
                     className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors w-full justify-center"
                   >
-                    <Upload size={14}/>
+                    <Upload size={14} />
                     {bannerPreview ? 'Change Banner' : 'Upload Banner'}
                   </button>
                   <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={e => {
                     const f = e.target.files?.[0]; if (f) { setBannerFile(f); setBannerPreview(URL.createObjectURL(f)); }
-                  }}/>
+                  }} />
                 </div>
               </div>
 
-              <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Name *</label><input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} className="input" required/></div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Description</label><textarea value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} className="input resize-none" rows={2}/></div>
+              <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Name *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="input" required /></div>
+              <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Description</label><textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="input resize-none" rows={2} /></div>
 
               <div><label className="block text-xs font-bold text-gray-600 mb-2">Icon Emoji</label>
                 <div className="flex flex-wrap gap-2">{ICONS.map(icon => (
-                  <button key={icon} type="button" onClick={() => setForm(f=>({...f,icon}))}
-                    className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all ${form.icon===icon?'bg-primary/15 border-2 border-primary scale-110':'border border-gray-200 hover:border-primary'}`}
+                  <button key={icon} type="button" onClick={() => setForm(f => ({ ...f, icon }))}
+                    className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all ${form.icon === icon ? 'bg-primary/15 border-2 border-primary scale-110' : 'border border-gray-200 hover:border-primary'}`}
                   >{icon}</button>
                 ))}</div>
               </div>
 
-              <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Sort Order</label><input type="number" value={form.sortOrder} onChange={e => setForm(f=>({...f,sortOrder:Number(e.target.value)}))} className="input"/></div>
+              <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Sort Order</label><input type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} className="input" /></div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1.5">Parent Category</label>
-                  <select value={form.parent} onChange={e => setForm(f=>({...f,parent:e.target.value}))} className="input">
+                  <select value={form.parent} onChange={e => setForm(f => ({ ...f, parent: e.target.value }))} className="input">
                     <option value="">None (Top Level)</option>
                     {categories.filter(c => c._id !== editing?._id).map(c => (
                       <option key={c._id} value={c._id}>{c.name}</option>
@@ -407,7 +402,7 @@ const CategoriesPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1.5">Display Layout</label>
-                  <select value={form.layoutType} onChange={e => setForm(f=>({...f,layoutType:e.target.value}))} className="input">
+                  <select value={form.layoutType} onChange={e => setForm(f => ({ ...f, layoutType: e.target.value }))} className="input">
                     <option value="standard">Standard Grid</option>
                     <option value="hanging">Hanging (Keychain Style)</option>
                   </select>
@@ -415,9 +410,9 @@ const CategoriesPage: React.FC = () => {
               </div>
 
               <div className="flex gap-6">
-                {[['isActive','Active'],['featured','Featured'], ['isDashboardMain', 'Show on Dashboard Side']].map(([k,l]) => (
+                {[['isActive', 'Active'], ['featured', 'Featured'], ['isDashboardMain', 'Show on Dashboard Side']].map(([k, l]) => (
                   <label key={k} className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form[k as keyof CatForm] as boolean} onChange={e => setForm(f=>({...f,[k]:e.target.checked}))} className="accent-primary w-4 h-4"/>
+                    <input type="checkbox" checked={form[k as keyof CatForm] as boolean} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} className="accent-primary w-4 h-4" />
                     <span className="text-sm whitespace-nowrap">{l}</span>
                   </label>
                 ))}
@@ -426,7 +421,7 @@ const CategoriesPage: React.FC = () => {
               <div className="flex gap-3 pt-1">
                 <button type="submit" disabled={saving || uploading} className="btn-primary flex-1 justify-center">
                   {(saving || uploading)
-                    ? <><Loader2 size={15} className="animate-spin mr-1.5"/>{uploading ? 'Uploading…' : 'Saving…'}</>
+                    ? <><Loader2 size={15} className="animate-spin mr-1.5" />{uploading ? 'Uploading…' : 'Saving…'}</>
                     : editing ? 'Update' : 'Create'
                   }
                 </button>

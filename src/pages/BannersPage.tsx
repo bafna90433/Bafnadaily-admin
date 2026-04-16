@@ -51,7 +51,7 @@ const BannersPage: React.FC = () => {
         {loading ? Array(3).fill(0).map((_,i) => <div key={i} className="h-48 skeleton rounded-xl"/>) :
           banners.map(b => (
             <div key={b._id} className="card overflow-hidden">
-              <div className="aspect-video bg-gray-100 relative">
+              <div className="aspect-[21/9] bg-gray-100 relative">
                 {b.image ? <img src={b.image} alt={b.title} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center h-full text-gray-300 text-sm">No image</div>}
                 <span className={`absolute top-2 right-2 badge ${b.isActive?'bg-green-500 text-white':'bg-gray-500 text-white'}`}>{b.isActive?'Active':'Hidden'}</span>
                 <span className="absolute top-2 left-2 badge bg-black/60 text-white capitalize">{b.type}</span>
@@ -92,7 +92,7 @@ const BannersPage: React.FC = () => {
               {form.type !== 'hanging' && <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Subtitle</label><input value={form.subtitle} onChange={e => setForm(f=>({...f,subtitle:e.target.value}))} className="input"/></div>}
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1.5">Banner Image</label>
-                {form.image && <img src={form.image} alt="" className="h-32 w-full object-cover rounded-xl mb-2 border"/>}
+                {form.image && <img src={form.image} alt="" className="aspect-[21/9] w-full object-cover rounded-xl mb-2 border"/>}
                 <label className={`flex items-center gap-2 border-2 border-dashed border-gray-200 rounded-xl p-3 cursor-pointer hover:border-primary text-sm text-gray-500 transition-colors ${uploading?'opacity-50':''}`}>
                   <Upload size={15}/> {uploading?'Uploading…':'Click to upload image'}
                   <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadImg(e.target.files[0])} disabled={uploading}/>

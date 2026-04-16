@@ -14,6 +14,12 @@ interface Banner {
   showOnMobile?: boolean;
   showOnWebsite?: boolean;
   sortOrder: number;
+  category?: string;
+}
+
+interface Category {
+  _id: string;
+  name: string;
 }
 
 // ── Per-card component for hanging images ─────────────────────────────────────
@@ -112,6 +118,7 @@ const StorefrontPage: React.FC = () => {
   const [uploadingHang, setUploadingHang] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
 
+  const [categories, setCategories] = useState<Category[]>([]);
   const [newBanner, setNewBanner] = useState<Banner>({
     title: '',
     subtitle: '',
@@ -120,7 +127,8 @@ const StorefrontPage: React.FC = () => {
     type: 'hero',
     showOnMobile: true,
     showOnWebsite: true,
-    sortOrder: 0
+    sortOrder: 0,
+    category: ''
   });
 
   const heroBanners = banners.filter(b => b.type !== 'hanging');
@@ -128,7 +136,15 @@ const StorefrontPage: React.FC = () => {
 
   useEffect(() => {
     fetchBanners();
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/categories/all');
+      setCategories(res.data.categories || []);
+    } catch { }
+  };
 
   const fetchBanners = async () => {
     try {
@@ -167,7 +183,7 @@ const StorefrontPage: React.FC = () => {
       await api.post('/banners', newBanner);
       toast.success('Banner added successfully');
       setShowAdd(false);
-      setNewBanner({ title: '', subtitle: '', image: '', link: '', type: 'hero', sortOrder: 0 });
+      setNewBanner({ title: '', subtitle: '', image: '', link: '', type: 'hero', sortOrder: 0, category: '' });
       fetchBanners();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to add banner');
@@ -200,7 +216,8 @@ const StorefrontPage: React.FC = () => {
         await api.post('/banners', {
           title: '', subtitle: '', link: '/products',
           image: res.data.images[0].url,
-          type: 'hanging', sortOrder: 0, isActive: true
+          type: 'hanging', sortOrder: 0, isActive: true,
+          category: newBanner.category || undefined // Allow assigning category to hanging items too
         });
       }
       toast.success(`${files.length} image(s) added!`);
@@ -290,6 +307,19 @@ const StorefrontPage: React.FC = () => {
                     <option value="hanging">Hanging Strip</option>
                   </select>
                 </div>
+                <div>
+                  <label className="label text-xs uppercase font-black text-slate-500">Target Page / Category</label>
+                  <select 
+                    className="input mt-1"
+                    value={newBanner.category || ''}
+                    onChange={e => setNewBanner({...newBanner, category: e.target.value})}
+                  >
+                    <option value="">Home Page (Global)</option>
+                    {categories.map(c => (
+                      <option key={c._id} value={c._id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="label text-xs uppercase font-black text-slate-500">Subtitle</label>
@@ -341,12 +371,17 @@ const StorefrontPage: React.FC = () => {
                     <Trash2 size={20} />
                   </button>
                 </div>
-                <div className="absolute top-2 left-2">
+                <div className="absolute top-2 left-2 flex flex-col gap-1">
                   <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase text-white shadow-sm ${
                     banner.type === 'hero' ? 'bg-indigo-500' : banner.type === 'promo' ? 'bg-orange-500' : 'bg-emerald-500'
                   }`}>
                     {banner.type}
                   </span>
+                  {banner.category && (
+                    <span className="px-2 py-1 bg-white text-primary text-[8px] font-bold rounded-lg border border-primary/20 shadow-sm inline-flex items-center gap-1">
+                      Collection: {categories.find(c => c._id === banner.category)?.name || 'Linked'}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="p-4 bg-white">
