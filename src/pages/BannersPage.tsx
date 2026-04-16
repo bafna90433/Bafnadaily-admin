@@ -3,8 +3,8 @@ import { Plus, Pencil, Trash2, Upload } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
-interface BannerForm { title:string; subtitle:string; image:string; link:string; type:string; isActive:boolean; sortOrder:number }
-const BINIT: BannerForm = { title:'',subtitle:'',image:'',link:'',type:'hero',isActive:true,sortOrder:0 }
+interface BannerForm { title:string; subtitle:string; image:string; link:string; type:string; isActive:boolean; showOnMobile:boolean; showOnWebsite:boolean; sortOrder:number }
+const BINIT: BannerForm = { title:'',subtitle:'',image:'',link:'',type:'hero',isActive:true,showOnMobile:true,showOnWebsite:true,sortOrder:0 }
 
 const BannersPage: React.FC = () => {
   const [banners, setBanners] = useState<any[]>([])
@@ -59,7 +59,7 @@ const BannersPage: React.FC = () => {
               <div className="p-3 flex items-center justify-between">
                 <div><p className="font-bold text-sm">{b.title||'(No title)'}</p><p className="text-xs text-gray-400 truncate max-w-[160px]">{b.link||'No link'}</p></div>
                 <div className="flex gap-1">
-                  <button onClick={() => { setEditing(b); setForm({title:b.title||'',subtitle:b.subtitle||'',image:b.image||'',link:b.link||'',type:b.type,isActive:b.isActive,sortOrder:b.sortOrder}); setOpen(true) }} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg"><Pencil size={14}/></button>
+                  <button onClick={() => { setEditing(b); setForm({title:b.title||'',subtitle:b.subtitle||'',image:b.image||'',link:b.link||'',type:b.type,isActive:b.isActive,showOnMobile:b.showOnMobile!==false,showOnWebsite:b.showOnWebsite!==false,sortOrder:b.sortOrder}); setOpen(true) }} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg"><Pencil size={14}/></button>
                   <button onClick={() => del(b._id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={14}/></button>
                 </div>
               </div>
@@ -107,7 +107,17 @@ const BannersPage: React.FC = () => {
                 </div>
                 <div><label className="block text-xs font-bold text-gray-600 mb-1.5">Sort Order</label><input type="number" value={form.sortOrder} onChange={e => setForm(f=>({...f,sortOrder:Number(e.target.value)}))} className="input"/></div>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.isActive} onChange={e => setForm(f=>({...f,isActive:e.target.checked}))} className="accent-primary w-4 h-4"/><span className="text-sm font-medium">Active (visible on website)</span></label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-2 rounded-lg border border-gray-100">
+                  <input type="checkbox" checked={form.showOnWebsite} onChange={e => setForm(f=>({...f,showOnWebsite:e.target.checked}))} className="accent-primary w-4 h-4"/>
+                  <span className="text-xs font-medium">Show on Website</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-2 rounded-lg border border-gray-100">
+                  <input type="checkbox" checked={form.showOnMobile} onChange={e => setForm(f=>({...f,showOnMobile:e.target.checked}))} className="accent-primary w-4 h-4"/>
+                  <span className="text-xs font-medium">Show on App</span>
+                </label>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.isActive} onChange={e => setForm(f=>({...f,isActive:e.target.checked}))} className="accent-primary w-4 h-4"/><span className="text-sm font-medium">Active (Status)</span></label>
               <div className="flex gap-3"><button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">{saving?'Saving…':'Save Banner'}</button><button type="button" onClick={() => setOpen(false)} className="btn-secondary flex-1 justify-center">Cancel</button></div>
             </form>
           </div>

@@ -193,14 +193,28 @@ const Preview4 = () => (
         <div className="w-5 h-5 rounded-lg" style={{background:'linear-gradient(135deg,#E91E63,#C2185B)'}}/>
       </div>
     </div>
-    {/* Hero with banner */}
-    <div className="mx-3 mt-2 rounded-2xl overflow-hidden flex-shrink-0" style={{height:70, background:'linear-gradient(135deg,#E91E63,#FF6B9D,#C77DFF)'}}>
-      <div className="w-full h-full flex items-end p-2">
-        <div className="space-y-1">
-          <div className="w-28 h-2 bg-white/80 rounded"/>
-          <div className="w-20 h-2.5 bg-white rounded"/>
-          <div className="w-16 h-4 bg-white rounded-full flex items-center justify-center">
-            <div className="w-10 h-1.5 bg-pink-500 rounded"/>
+    <div className="mx-3 mt-2 flex gap-3 h-[85px]">
+      {/* Hanging items preview */}
+      <div className="flex gap-1.5 pt-1">
+        {[1,2,3].map(i => (
+          <div key={i} className="flex flex-col items-center">
+            <div className="w-[1px] h-3 bg-pink-400"/>
+            <div className="w-6 h-8 bg-white rounded-lg shadow-sm border border-pink-100 flex flex-col items-center p-0.5">
+              <div className="w-full h-4 bg-pink-50 rounded-md mb-0.5"/>
+              <div className="w-4 h-1 bg-pink-500 rounded-full"/>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Main banner slider preview */}
+      <div className="flex-1 rounded-2xl overflow-hidden" style={{background:'linear-gradient(135deg,#E91E63,#FF6B9D,#C77DFF)'}}>
+        <div className="w-full h-full flex items-end p-2">
+          <div className="space-y-1">
+            <div className="w-20 h-1.5 bg-white/80 rounded"/>
+            <div className="w-28 h-2.5 bg-white rounded"/>
+            <div className="w-16 h-4 bg-white rounded-full flex items-center justify-center">
+              <div className="w-10 h-1.5 bg-pink-500 rounded"/>
+            </div>
           </div>
         </div>
       </div>
