@@ -77,6 +77,21 @@ const CategoriesPage: React.FC = () => {
     setImagePreview(URL.createObjectURL(file))
   }
 
+  const uploadImageForCat = async (cat: any, file: File) => {
+    const tid = toast.loading(`Uploading image for ${cat.name}...`)
+    try {
+      const fd = new FormData()
+      fd.append('image', file)
+      await api.post(`/categories/${cat._id}/upload-image`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      toast.success('Image updated!', { id: tid })
+      fetchCats()
+    } catch (err) {
+      toast.error('Upload failed', { id: tid })
+    }
+  }
+
   // ─── Move category up or down ───────────────────────────────────────────────
   const moveCategory = async (index: number, direction: 'up' | 'down') => {
     const newList = [...categories]
