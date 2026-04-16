@@ -60,6 +60,15 @@ const CategoriesPage: React.FC = () => {
     setBannerFile(null)
     setOpen(true)
   }
+  const openAddSub = (parentId: string) => {
+    setEditing(null)
+    setForm({ ...CINIT, parent: parentId })
+    setImagePreview(null)
+    setImageFile(null)
+    setBannerPreview(null)
+    setBannerFile(null)
+    setOpen(true)
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -167,20 +176,115 @@ const CategoriesPage: React.FC = () => {
     try { await api.delete(`/categories/${id}`); toast.success('Deleted'); fetchCats() } catch { toast.error('Failed') }
   }
 
-  const uploadImageForCat = async (cat: any, file: File) => {
-    const toastId = toast.loading('Uploading image...')
-    try {
-      const fd = new FormData()
-      fd.append('image', file)
-      const res = await api.post(`/categories/${cat._id}/upload-image`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      toast.success('Image uploaded!', { id: toastId })
-      setCategories(prev => prev.map(c => c._id === cat._id ? { ...c, image: res.data.url } : c))
-    } catch {
-      toast.error('Upload failed', { id: toastId })
     }
   }
+
+  // Helper to group categories recursively
+  const mainCategories = categories.filter(c => !c.parent || c.parent === '')
+  const getSubCategories = (parentId: string) => categories.filter(c => (c.parent?._id || c.parent) === parentId)
+
+  const renderCategoryItem = (cat: any, index: number, isSub: boolean = false) => (
+    <div
+      key={cat._id}
+      className={`card p-3 flex items-center gap-3 transition-all duration-200 ${
+        movingId === cat._id ? 'opacity-60 scale-[0.99]' : 'hover:shadow-md'
+      } ${isSub ? 'ml-12 border-l-4 border-primary/20 bg-gray-50/30' : ''}`}
+    >
+      {/* Order Badge */}
+      <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-6">
+        <span className="text-[10px] font-bold text-gray-300">#{index + 1}</span>
+        <GripVertical size={13} className="text-gray-300"/>
+      </div>
+
+      {/* Move Buttons */}
+      <div className="flex flex-col gap-0.5 flex-shrink-0">
+        <button
+          onClick={() => moveCategory(index, 'up')}
+          disabled={index === 0 || movingId !== null}
+          className={`p-1 rounded-lg transition-all ${
+            index === 0 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-primary hover:bg-primary/10'
+          }`}
+        >
+          <ChevronUp size={16}/>
+        </button>
+        <button
+          onClick={() => moveCategory(index, 'down')}
+          disabled={index === categories.length - 1 || movingId !== null}
+          className={`p-1 rounded-lg transition-all ${
+            index === categories.length - 1 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-primary hover:bg-primary/10'
+          }`}
+        >
+          <ChevronDown size={16}/>
+        </button>
+      </div>
+
+      {/* Image / Icon */}
+      <div className="relative flex-shrink-0 group/img">
+        {cat.image ? (
+          <img src={cat.image} alt={cat.name} className="w-12 h-12 rounded-xl object-cover border border-gray-100"/>
+        ) : (
+          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-xl">
+            {cat.icon || '🎁'}
+          </div>
+        )}
+        <label
+          className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer"
+          title="Change Image"
+        >
+          <Upload size={12} className="text-white"/>
+          <input type="file" accept="image/*" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) uploadImageForCat(cat, f) }}
+          />
+        </label>
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="font-semibold text-sm truncate">{cat.name}</p>
+          {cat.featured && (
+            <span className="text-[9px] px-1.5 py-0.5 bg-yellow-100 text-yellow-600 rounded-full font-bold">Featured</span>
+          )}
+          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+            {cat.isActive ? 'Active' : 'Inactive'}
+          </span>
+          {cat.isDashboardMain && (
+            <span className="text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold">Dashboard Side</span>
+          )}
+          {isSub && (
+            <span className="text-[9px] px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded-full font-bold uppercase tracking-tighter">Sub-Category</span>
+          )}
+        </div>
+        <p className="text-xs text-gray-400 truncate mt-0.5">{cat.description || 'No description'}</p>
+      </div>
+
+      {/* Sort number indicator */}
+      <div className="hidden sm:flex items-center">
+        <span className="text-xs text-gray-300 font-mono bg-gray-50 px-2 py-1 rounded-lg border">
+          order: {cat.sortOrder ?? index}
+        </span>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-1 flex-shrink-0">
+        {!isSub && (
+          <button 
+            onClick={() => openAddSub(cat._id)} 
+            className="p-1.5 text-primary hover:bg-primary/10 rounded-lg flex items-center gap-1 text-[10px] font-bold" 
+            title="Add Sub-category"
+          >
+            <Plus size={14}/> SUB
+          </button>
+        )}
+        <button onClick={() => openEdit(cat)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="Edit">
+          <Pencil size={14}/>
+        </button>
+        <button onClick={() => del(cat._id, cat.name)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete">
+          <Trash2 size={14}/>
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div>
@@ -194,104 +298,16 @@ const CategoriesPage: React.FC = () => {
       </div>
 
       {/* Category List */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {loading
           ? Array(5).fill(0).map((_, i) => <div key={i} className="h-20 skeleton rounded-xl"/>)
-          : categories.map((cat, index) => (
-              <div
-                key={cat._id}
-                className={`card p-3 flex items-center gap-3 transition-all duration-200 ${
-                  movingId === cat._id ? 'opacity-60 scale-[0.99]' : 'hover:shadow-md'
-                }`}
-              >
-                {/* Order Badge */}
-                <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-6">
-                  <span className="text-[10px] font-bold text-gray-300">#{index + 1}</span>
-                  <GripVertical size={13} className="text-gray-300"/>
-                </div>
-
-                {/* Move Buttons */}
-                <div className="flex flex-col gap-0.5 flex-shrink-0">
-                  <button
-                    onClick={() => moveCategory(index, 'up')}
-                    disabled={index === 0 || movingId !== null}
-                    className={`p-1 rounded-lg transition-all ${
-                      index === 0
-                        ? 'text-gray-200 cursor-not-allowed'
-                        : 'text-gray-400 hover:text-primary hover:bg-primary/10'
-                    }`}
-                    title="Move Up"
-                  >
-                    <ChevronUp size={16}/>
-                  </button>
-                  <button
-                    onClick={() => moveCategory(index, 'down')}
-                    disabled={index === categories.length - 1 || movingId !== null}
-                    className={`p-1 rounded-lg transition-all ${
-                      index === categories.length - 1
-                        ? 'text-gray-200 cursor-not-allowed'
-                        : 'text-gray-400 hover:text-primary hover:bg-primary/10'
-                    }`}
-                    title="Move Down"
-                  >
-                    <ChevronDown size={16}/>
-                  </button>
-                </div>
-
-                {/* Image / Icon */}
-                <div className="relative flex-shrink-0 group/img">
-                  {cat.image ? (
-                    <img src={cat.image} alt={cat.name} className="w-12 h-12 rounded-xl object-cover border border-gray-100"/>
-                  ) : (
-                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-xl">
-                      {cat.icon || '🎁'}
-                    </div>
-                  )}
-                  <label
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer"
-                    title="Change Image"
-                  >
-                    <Upload size={12} className="text-white"/>
-                    <input type="file" accept="image/*" className="hidden"
-                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadImageForCat(cat, f) }}
-                    />
-                  </label>
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-sm truncate">{cat.name}</p>
-                    {cat.featured && (
-                      <span className="text-[9px] px-1.5 py-0.5 bg-yellow-100 text-yellow-600 rounded-full font-bold">Featured</span>
-                    )}
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
-                    {cat.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    {cat.isDashboardMain && (
-                      <span className="text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold">Dashboard Side</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-400 truncate mt-0.5">{cat.description || 'No description'}</p>
-                </div>
-
-                {/* Sort number indicator */}
-                <div className="hidden sm:flex items-center">
-                  <span className="text-xs text-gray-300 font-mono bg-gray-50 px-2 py-1 rounded-lg border">
-                    order: {cat.sortOrder ?? index}
-                  </span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-1 flex-shrink-0">
-                  <button onClick={() => openEdit(cat)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="Edit">
-                    <Pencil size={14}/>
-                  </button>
-                  <button onClick={() => del(cat._id, cat.name)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete">
-                    <Trash2 size={14}/>
-                  </button>
-                </div>
-              </div>
+          : mainCategories.map((cat, index) => (
+              <React.Fragment key={cat._id}>
+                {renderCategoryItem(cat, index, false)}
+                {getSubCategories(cat._id).map((sub, sIdx) => (
+                  renderCategoryItem(sub, sIdx, true)
+                ))}
+              </React.Fragment>
             ))
         }
       </div>
