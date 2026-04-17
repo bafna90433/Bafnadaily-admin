@@ -15,21 +15,21 @@ const BINIT: BannerForm = {
 }
 
 const TYPE_INFO: Record<string, { emoji: string; label: string; desc: string; color: string }> = {
-  hero:     { emoji: '🖼️', label: 'Main Banner (Hero)',      desc: 'Category page pe main banner slider mein show hoga',       color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  hanging:  { emoji: '🪁', label: 'Hanging Banner',          desc: 'Category page pe hanging items (rope) section mein show hoga', color: 'bg-pink-100 text-pink-700 border-pink-200' },
-  promo:    { emoji: '🎯', label: 'Promo Banner',             desc: 'Promotional strip banner',                                 color: 'bg-orange-100 text-orange-700 border-orange-200' },
-  category: { emoji: '📂', label: 'Category Banner',         desc: 'Category highlight banner',                                color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  hero: { emoji: '🖼️', label: 'Main Banner (Hero)', desc: 'Category page pe main banner slider mein show hoga', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  hanging: { emoji: '🪁', label: 'Hanging Banner', desc: 'Category page pe hanging items (rope) section mein show hoga', color: 'bg-pink-100 text-pink-700 border-pink-200' },
+  promo: { emoji: '🎯', label: 'Promo Banner', desc: 'Promotional strip banner', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+  category: { emoji: '📂', label: 'Category Banner', desc: 'Category highlight banner', color: 'bg-purple-100 text-purple-700 border-purple-200' },
 }
 
 const BannersPage: React.FC = () => {
-  const [banners, setBanners]     = useState<any[]>([])
+  const [banners, setBanners] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [open, setOpen]           = useState(false)
-  const [editing, setEditing]     = useState<any>(null)
-  const [form, setForm]           = useState<BannerForm>(BINIT)
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
+  const [form, setForm] = useState<BannerForm>(BINIT)
   const [uploading, setUploading] = useState(false)
-  const [saving, setSaving]       = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const fetchBanners = () => {
     setLoading(true)
@@ -79,7 +79,7 @@ const BannersPage: React.FC = () => {
 
   // Group banners by category for display
   const globalBanners = banners.filter(b => !b.category)
-  const catBanners    = banners.filter(b => b.category)
+  const catBanners = banners.filter(b => b.category)
 
   const info = TYPE_INFO[form.type] || TYPE_INFO.hero
 
@@ -92,7 +92,7 @@ const BannersPage: React.FC = () => {
           <p className="text-sm text-gray-500 mt-0.5">Hero banners ← category assign karo • Hanging banners ← category + hanging type</p>
         </div>
         <button onClick={() => { setEditing(null); setForm(BINIT); setOpen(true) }} className="btn-primary flex items-center gap-2">
-          <Plus size={17}/> Add Banner
+          <Plus size={17} /> Add Banner
         </button>
       </div>
 
@@ -102,8 +102,8 @@ const BannersPage: React.FC = () => {
           🌐 Global Banners <span className="text-xs font-normal text-gray-400">(Homepage pe show honge)</span>
         </h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {loading ? Array(3).fill(0).map((_,i) => <div key={i} className="h-48 skeleton rounded-xl"/>)
-            : globalBanners.map(b => <BannerCard key={b._id} b={b} onEdit={openEdit} onDel={del}/>)}
+          {loading ? Array(3).fill(0).map((_, i) => <div key={i} className="h-48 skeleton rounded-xl" />)
+            : globalBanners.map(b => <BannerCard key={b._id} b={b} onEdit={openEdit} onDel={del} />)}
           {!loading && globalBanners.length === 0 && (
             <div className="col-span-3 text-center py-10 text-gray-400 border-2 border-dashed rounded-xl">
               No global banners yet
@@ -122,7 +122,7 @@ const BannersPage: React.FC = () => {
           {/* Group by category */}
           {Object.entries(
             catBanners.reduce((acc: any, b) => {
-              const catId   = b.category?._id || b.category
+              const catId = b.category?._id || b.category
               const catName = b.category?.name || categories.find(c => c._id === catId)?.name || catId
               if (!acc[catName]) acc[catName] = []
               acc[catName].push(b)
@@ -131,10 +131,10 @@ const BannersPage: React.FC = () => {
           ).map(([catName, blist]: any) => (
             <div key={catName} className="mb-6">
               <p className="text-xs font-bold text-primary mb-2 flex items-center gap-1">
-                <Tag size={12}/> {catName}
+                <Tag size={12} /> {catName}
               </p>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {blist.map((b: any) => <BannerCard key={b._id} b={b} onEdit={openEdit} onDel={del}/>)}
+                {blist.map((b: any) => <BannerCard key={b._id} b={b} onEdit={openEdit} onDel={del} />)}
               </div>
             </div>
           ))}
@@ -222,7 +222,7 @@ const BannersPage: React.FC = () => {
               {form.type !== 'hanging' && (
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1.5">Subtitle</label>
-                  <input value={form.subtitle} onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))} className="input"/>
+                  <input value={form.subtitle} onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))} className="input" />
                 </div>
               )}
 
@@ -230,11 +230,11 @@ const BannersPage: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1.5">Banner Image</label>
                 {form.image && (
-                  <img src={form.image} alt="" className={`w-full object-cover rounded-xl mb-2 border ${form.type === 'hanging' ? 'aspect-[9/16] h-32 object-contain' : 'aspect-[21/9]'}`}/>
+                  <img src={form.image} alt="" className={`w-full object-cover rounded-xl mb-2 border ${form.type === 'hanging' ? 'aspect-[9/16] h-32 object-contain' : 'aspect-[21/9]'}`} />
                 )}
                 <label className={`flex items-center gap-2 border-2 border-dashed border-gray-200 rounded-xl p-3 cursor-pointer hover:border-primary text-sm text-gray-500 transition-colors ${uploading ? 'opacity-50' : ''}`}>
-                  <Upload size={15}/> {uploading ? 'Uploading…' : 'Click to upload image'}
-                  <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadImg(e.target.files[0])} disabled={uploading}/>
+                  <Upload size={15} /> {uploading ? 'Uploading…' : 'Click to upload image'}
+                  <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadImg(e.target.files[0])} disabled={uploading} />
                 </label>
                 {form.type === 'hanging' && <p className="text-xs text-pink-500 mt-1">📐 Portrait image upload karo (9:16 ratio best)</p>}
               </div>
@@ -242,28 +242,28 @@ const BannersPage: React.FC = () => {
               {/* Link */}
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1.5">Link URL</label>
-                <input value={form.link} onChange={e => setForm(f => ({ ...f, link: e.target.value }))} className="input" placeholder="/category/keychains"/>
+                <input value={form.link} onChange={e => setForm(f => ({ ...f, link: e.target.value }))} className="input" placeholder="/category/keychains" />
               </div>
 
               {/* Sort order */}
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1.5">Sort Order</label>
-                <input type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} className="input"/>
+                <input type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} className="input" />
               </div>
 
               {/* Toggles */}
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-2 rounded-lg border border-gray-100">
-                  <input type="checkbox" checked={form.showOnWebsite} onChange={e => setForm(f => ({ ...f, showOnWebsite: e.target.checked }))} className="accent-primary w-4 h-4"/>
+                  <input type="checkbox" checked={form.showOnWebsite} onChange={e => setForm(f => ({ ...f, showOnWebsite: e.target.checked }))} className="accent-primary w-4 h-4" />
                   <span className="text-xs font-medium">Show on Website</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-2 rounded-lg border border-gray-100">
-                  <input type="checkbox" checked={form.showOnMobile} onChange={e => setForm(f => ({ ...f, showOnMobile: e.target.checked }))} className="accent-primary w-4 h-4"/>
+                  <input type="checkbox" checked={form.showOnMobile} onChange={e => setForm(f => ({ ...f, showOnMobile: e.target.checked }))} className="accent-primary w-4 h-4" />
                   <span className="text-xs font-medium">Show on App</span>
                 </label>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="accent-primary w-4 h-4"/>
+                <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="accent-primary w-4 h-4" />
                 <span className="text-sm font-medium">Active (Visible on site)</span>
               </label>
 
@@ -286,7 +286,7 @@ const BannerCard = ({ b, onEdit, onDel }: { b: any; onEdit: (b: any) => void; on
     <div className="card overflow-hidden">
       <div className={`aspect-[21/9] bg-gray-100 relative ${b.type === 'hanging' ? 'aspect-[3/4]' : ''}`}>
         {b.image
-          ? <img src={b.image} alt={b.title} className="w-full h-full object-cover"/>
+          ? <img src={b.image} alt={b.title} className="w-full h-full object-cover" />
           : <div className="flex items-center justify-center h-full text-gray-300 text-sm">No image</div>}
         <span className={`absolute top-2 right-2 badge ${b.isActive ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>
           {b.isActive ? 'Active' : 'Hidden'}
@@ -301,8 +301,8 @@ const BannerCard = ({ b, onEdit, onDel }: { b: any; onEdit: (b: any) => void; on
           <p className="text-xs text-gray-400 truncate max-w-[180px]">{b.link || 'No link'}</p>
         </div>
         <div className="flex gap-1">
-          <button onClick={() => onEdit(b)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg"><Pencil size={14}/></button>
-          <button onClick={() => onDel(b._id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={14}/></button>
+          <button onClick={() => onEdit(b)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg"><Pencil size={14} /></button>
+          <button onClick={() => onDel(b._id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
         </div>
       </div>
     </div>
