@@ -54,7 +54,12 @@ const DealsOfDayPage: React.FC = () => {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchDeals() }, [])
+  useEffect(() => {
+    fetchDeals()
+    // Auto-refresh every 60 seconds so expired status updates correctly
+    const interval = setInterval(() => fetchDeals(), 60000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     if (!search.trim()) { setSearchResults([]); return }
@@ -143,6 +148,13 @@ const DealsOfDayPage: React.FC = () => {
       setDeals(prev => prev.map(d => d._id === deal._id ? { ...d, isActive: !d.isActive } : d))
     } catch { toast.error('Update failed') }
   }
+
+  // Tick every second so isExpired() stays accurate in the UI
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 1000)
+    return () => clearInterval(t)
+  }, [])
 
   const activeDeals = deals.filter(d => d.isActive && !isExpired(d.endTime))
   const expiredDeals = deals.filter(d => !d.isActive || isExpired(d.endTime))
