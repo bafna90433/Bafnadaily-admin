@@ -358,6 +358,7 @@ const StorefrontPage: React.FC = () => {
                     <option value="hero">Hero (Main Slider)</option>
                     <option value="promo">Promo (Static Card)</option>
                     <option value="category">Category Highlight</option>
+                    <option value="hanging">Hanging Strip</option>
                   </select>
                 </div>
               </div>
