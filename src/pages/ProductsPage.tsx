@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Search, ToggleLeft, ToggleRight, Package } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Package, X } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -8,29 +8,43 @@ const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const searchRef = useRef<HTMLInputElement>(null)
 
-  const fetch = useCallback(async () => {
+  // Debounce search input 400ms
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1) // reset to page 1 on new search
+    }, 400)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const fetchProducts = useCallback(async () => {
     setLoading(true)
     try {
-      const p = new URLSearchParams({ page: String(page), limit: '20' })
-      if (search) p.set('search', search)
+      const p = new URLSearchParams({ page: String(page), limit: '20', admin: 'true' })
+      if (debouncedSearch) p.set('search', debouncedSearch)
       const res = await api.get(`/products?${p}`)
       setProducts(res.data.products); setTotal(res.data.total)
     } catch {} finally { setLoading(false) }
-  }, [page, search])
+  }, [page, debouncedSearch])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { fetchProducts() }, [fetchProducts])
 
   const del = async (id: string, name: string) => {
     if (!confirm(`Delete "${name}"?`)) return
-    try { await api.delete(`/products/${id}`); toast.success('Product deleted'); fetch() }
+    try { await api.delete(`/products/${id}`); toast.success('Product deleted'); fetchProducts() }
     catch { toast.error('Failed') }
   }
 
   const toggle = async (id: string, current: boolean) => {
-    try { await api.put(`/products/${id}`, { isActive: !current }); fetch() }
+    try {
+      await api.put(`/products/${id}`, { isActive: !current })
+      setProducts(prev => prev.map(p => p._id === id ? { ...p, isActive: !current } : p))
+    }
     catch { toast.error('Failed') }
   }
 
@@ -45,8 +59,16 @@ const ProductsPage: React.FC = () => {
         <div className="p-4 border-b border-gray-100 flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-            <input value={search} onChange={e => setSearch(e.target.value)} className="input pl-9 py-2" placeholder="Search products…"/>
+            <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} className="input pl-9 pr-8 py-2" placeholder="Search products…"/>
+            {search && (
+              <button onClick={() => { setSearch(''); searchRef.current?.focus() }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 rounded transition-colors">
+                <X size={14}/>
+              </button>
+            )}
           </div>
+          {debouncedSearch && (
+            <p className="text-xs text-gray-400">Results for "<span className="font-semibold text-gray-600">{debouncedSearch}</span>"</p>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">

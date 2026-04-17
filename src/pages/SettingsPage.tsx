@@ -398,6 +398,80 @@ const SettingsPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* ── Meta Pixel ── */}
+              <div className={`p-5 rounded-2xl border-2 transition-colors ${settings.metaPixelEnabled ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#1877F2] flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-black text-lg leading-none">f</span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-base">Meta Pixel (Facebook)</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Track visitors, conversions & run ads</p>
+                    </div>
+                  </div>
+                  <Toggle checked={settings.metaPixelEnabled || false} onChange={v => set('metaPixelEnabled', v)}/>
+                </div>
+                {settings.metaPixelEnabled && (
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Pixel ID</label>
+                      <input
+                        value={settings.metaPixelId || ''}
+                        onChange={e => set('metaPixelId', e.target.value)}
+                        className="input font-mono"
+                        placeholder="e.g. 1234567890123456"
+                      />
+                      <p className="text-xs text-gray-400 mt-1.5">
+                        Find your Pixel ID at{' '}
+                        <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                          Facebook Events Manager
+                        </a>
+                      </p>
+                    </div>
+                    {settings.metaPixelId && (
+                      <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"/>
+                        Pixel ID <strong className="font-mono mx-1">{settings.metaPixelId}</strong> — active on website after save
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Google Analytics ── */}
+              <div className={`p-5 rounded-2xl border-2 transition-colors ${settings.googleAnalyticsEnabled ? 'border-orange-300 bg-orange-50' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#F9AB00] flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-black text-sm leading-none">GA</span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-base">Google Analytics (GA4)</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Track traffic, sessions & user behaviour</p>
+                    </div>
+                  </div>
+                  <Toggle checked={settings.googleAnalyticsEnabled || false} onChange={v => set('googleAnalyticsEnabled', v)}/>
+                </div>
+                {settings.googleAnalyticsEnabled && (
+                  <div className="mt-4">
+                    <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Measurement ID</label>
+                    <input
+                      value={settings.googleAnalyticsId || ''}
+                      onChange={e => set('googleAnalyticsId', e.target.value)}
+                      className="input font-mono"
+                      placeholder="e.g. G-XXXXXXXXXX"
+                    />
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      Find it at{' '}
+                      <a href="https://analytics.google.com" target="_blank" rel="noopener noreferrer" className="text-orange-500 underline">
+                        Google Analytics
+                      </a>{' '}→ Admin → Data Streams
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
