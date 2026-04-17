@@ -359,7 +359,7 @@ const StorefrontPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {banners.map((banner) => (
+          {heroBanners.map((banner) => (
             <div key={banner._id} className="card overflow-hidden group">
               <div className="aspect-[21/9] relative">
                 <img src={banner.image} className="w-full h-full object-cover" alt={banner.title} />
@@ -395,7 +395,7 @@ const StorefrontPage: React.FC = () => {
               </div>
             </div>
           ))}
-          {banners.length === 0 && !showAdd && (
+          {heroBanners.length === 0 && !showAdd && (
             <div className="lg:col-span-3 card p-20 flex flex-col items-center border-dashed border-2">
               <ImageIcon className="text-slate-300 mb-4" size={50} />
               <p className="font-bold text-slate-500">No active banners. Add one to show on your app!</p>

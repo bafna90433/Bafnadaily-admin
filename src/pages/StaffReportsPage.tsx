@@ -38,6 +38,16 @@ const StaffReportsPage: React.FC = () => {
   const [isCopyMode, setIsCopyMode] = useState(false)
   const [allFoldersForPicker, setAllFoldersForPicker] = useState<StaffFolder[]>([])
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteFolderTargetId, setDeleteFolderTargetId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const [showRenameModal, setShowRenameModal] = useState(false)
+  const [renameFolder, setRenameFolder] = useState<StaffFolder | null>(null)
+  const [renameName, setRenameName] = useState('')
+  const [renaming, setRenaming] = useState(false)
+
   useEffect(() => {
     fetchData()
   }, [currentFolderId])
@@ -123,6 +133,82 @@ const StaffReportsPage: React.FC = () => {
       setSelectedFolderIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
     } else {
       setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+    }
+  }
+
+  const openDeleteConfirm = (singleId?: string) => {
+    setDeleteTargetId(singleId || null)
+    setDeleteFolderTargetId(null)
+    setShowDeleteConfirm(true)
+  }
+
+  const openFolderDeleteConfirm = (folderId: string) => {
+    setDeleteFolderTargetId(folderId)
+    setDeleteTargetId(null)
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      if (deleteFolderTargetId) {
+        // Delete single folder
+        await api.delete(`/staff-reports/folders/${deleteFolderTargetId}`)
+        setFolders(prev => prev.filter(f => f._id !== deleteFolderTargetId))
+        toast.success('Folder deleted')
+      } else if (selectedIds.length > 0 && selectedFolderIds.length > 0) {
+        // Mixed selection: delete both images and folders
+        await Promise.all([
+          ...selectedIds.map(id => api.delete(`/staff-reports/${id}`)),
+          ...selectedFolderIds.map(id => api.delete(`/staff-reports/folders/${id}`))
+        ])
+        setReports(prev => prev.filter(r => !selectedIds.includes(r._id)))
+        setFolders(prev => prev.filter(f => !selectedFolderIds.includes(f._id)))
+        toast.success(`${selectedIds.length + selectedFolderIds.length} items deleted`)
+        setSelectedIds([])
+        setSelectedFolderIds([])
+      } else if (selectedFolderIds.length > 0) {
+        // Only folders selected
+        await Promise.all(selectedFolderIds.map(id => api.delete(`/staff-reports/folders/${id}`)))
+        setFolders(prev => prev.filter(f => !selectedFolderIds.includes(f._id)))
+        toast.success(`${selectedFolderIds.length} folder${selectedFolderIds.length > 1 ? 's' : ''} deleted`)
+        setSelectedFolderIds([])
+      } else {
+        // Only images
+        const idsToDelete = deleteTargetId ? [deleteTargetId] : selectedIds
+        await Promise.all(idsToDelete.map(id => api.delete(`/staff-reports/${id}`)))
+        setReports(prev => prev.filter(r => !idsToDelete.includes(r._id)))
+        toast.success(`${idsToDelete.length} image${idsToDelete.length > 1 ? 's' : ''} deleted`)
+        setSelectedIds([])
+      }
+    } catch {
+      toast.error('Delete failed')
+    } finally {
+      setDeleting(false)
+      setShowDeleteConfirm(false)
+      setDeleteTargetId(null)
+      setDeleteFolderTargetId(null)
+    }
+  }
+
+  const openRenameModal = (folder: StaffFolder) => {
+    setRenameFolder(folder)
+    setRenameName(folder.name)
+    setShowRenameModal(true)
+  }
+
+  const handleRename = async () => {
+    if (!renameFolder || !renameName.trim()) return
+    setRenaming(true)
+    try {
+      await api.patch(`/staff-reports/folders/${renameFolder._id}`, { name: renameName.trim() })
+      setFolders(prev => prev.map(f => f._id === renameFolder._id ? { ...f, name: renameName.trim() } : f))
+      toast.success('Folder renamed')
+      setShowRenameModal(false)
+    } catch {
+      toast.error('Rename failed')
+    } finally {
+      setRenaming(false)
     }
   }
 
@@ -213,7 +299,7 @@ const StaffReportsPage: React.FC = () => {
             {selectedIds.length > 0 && selectedFolderIds.length === 0 && (
               <button onClick={() => openMovePicker(true)} className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-all"><Copy size={16}/> Copy</button>
             )}
-            <button className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-all"><Trash2 size={18}/></button>
+            <button onClick={() => openDeleteConfirm()} className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded-xl text-sm font-bold transition-all"><Trash2 size={16}/> Delete</button>
           </div>
         </div>
       )}
@@ -240,23 +326,39 @@ const StaffReportsPage: React.FC = () => {
                     <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Sub-Directories</h3>
                     <div className="flex flex-wrap gap-4">
                         {filteredFolders.map((folder) => (
-                            <div 
-                                key={folder._id} 
+                            <div
+                                key={folder._id}
                                 onDoubleClick={() => navigateToFolder(folder)}
-                                className={`group min-w-[200px] flex items-center justify-between bg-white rounded-xl p-3 border transition-all cursor-pointer ${selectedFolderIds.includes(folder._id) ? 'ring-2 ring-primary border-primary bg-pink-50' : 'border-gray-100 hover:border-pink-200 hover:shadow-md'}`}
+                                className={`group min-w-[220px] flex items-center justify-between bg-white rounded-xl p-3 border transition-all cursor-pointer ${selectedFolderIds.includes(folder._id) ? 'ring-2 ring-primary border-primary bg-pink-50' : 'border-gray-100 hover:border-pink-200 hover:shadow-md'}`}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center text-green-500">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center text-green-500 flex-shrink-0">
                                         <Folder size={18} fill="currentColor" fillOpacity={0.2} />
                                     </div>
-                                    <p className="font-bold text-gray-700">{folder.name}</p>
+                                    <p className="font-bold text-gray-700 truncate">{folder.name}</p>
                                 </div>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); toggleSelect(folder._id, true); }}
-                                    className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selectedFolderIds.includes(folder._id) ? 'bg-primary border-primary' : 'bg-white border-gray-200 opacity-0 group-hover:opacity-100'}`}
-                                >
-                                    {selectedFolderIds.includes(folder._id) && <CheckSquare size={12} className="text-white" />}
-                                </button>
+                                <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); openRenameModal(folder); }}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-blue-500 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all"
+                                        title="Rename"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); openFolderDeleteConfirm(folder._id); }}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                                        title="Delete folder"
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); toggleSelect(folder._id, true); }}
+                                        className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${selectedFolderIds.includes(folder._id) ? 'bg-primary border-primary opacity-100' : 'bg-white border-gray-200 opacity-0 group-hover:opacity-100'}`}
+                                    >
+                                        {selectedFolderIds.includes(folder._id) && <CheckSquare size={12} className="text-white" />}
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -275,17 +377,24 @@ const StaffReportsPage: React.FC = () => {
                         key={report._id} 
                         className={`group bg-white rounded-2xl overflow-hidden border transition-all relative ${selectedIds.includes(report._id) ? 'ring-2 ring-primary border-primary' : 'border-gray-100 hover:border-pink-200 hover:shadow-xl shadow-sm'}`}
                         >
-                        <button 
+                        <button
                             onClick={() => toggleSelect(report._id)}
                             className={`absolute top-3 left-3 z-10 w-6 h-6 rounded-lg shadow-md flex items-center justify-center border transition-all ${selectedIds.includes(report._id) ? 'bg-primary border-primary' : 'bg-white border-gray-100 opacity-0 group-hover:opacity-100'}`}
                         >
                             {selectedIds.includes(report._id) ? <CheckSquare size={16} className="text-white" /> : <Square size={16} className="text-gray-300" />}
                         </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); openDeleteConfirm(report._id); }}
+                            className="absolute top-3 right-3 z-10 w-7 h-7 rounded-lg bg-red-500 text-white shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 hover:scale-110"
+                            title="Delete image"
+                        >
+                            <Trash2 size={13} />
+                        </button>
                         
-                        <div className="aspect-square bg-gray-50 overflow-hidden cursor-zoom-in" onClick={() => setPreviewImage(report.imageUrl)}>
-                            <img src={report.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                        <div className="aspect-square bg-gray-50 overflow-hidden cursor-zoom-in relative" onClick={() => setPreviewImage(report.imageUrl)}>
+                            <img src={report.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" loading="lazy" />
                             {report.productCode && (
-                            <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-black border border-white/20">
+                            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded-full text-[10px] font-black border border-white/20">
                                 {report.productCode}
                             </div>
                             )}
@@ -367,6 +476,73 @@ const StaffReportsPage: React.FC = () => {
       {previewImage && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/95" onClick={() => setPreviewImage(null)}>
           <img src={previewImage} className="max-w-full max-h-full rounded-2xl shadow-2xl" alt="" />
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <Trash2 size={26} className="text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              {deleteFolderTargetId ? 'Delete Folder?' : `Delete ${selectedIds.length + selectedFolderIds.length > 1 || (!deleteTargetId && !deleteFolderTargetId) ? 'Items' : 'Image'}?`}
+            </h3>
+            <p className="text-gray-500 text-center text-sm mb-8">
+              {deleteFolderTargetId
+                ? 'This folder and all its contents will be permanently deleted.'
+                : deleteTargetId
+                  ? 'This image will be permanently deleted from the server.'
+                  : `${selectedIds.length + selectedFolderIds.length} item${selectedIds.length + selectedFolderIds.length > 1 ? 's' : ''} will be permanently deleted.`}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); setDeleteFolderTargetId(null); }}
+                disabled={deleting}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-3 bg-red-500 text-white rounded-2xl font-bold hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+              >
+                {deleting ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Folder Modal */}
+      {showRenameModal && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">Rename Folder</h3>
+            <input
+              type="text"
+              className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-50 focus:border-primary transition-all font-medium"
+              placeholder="New folder name"
+              value={renameName}
+              onChange={(e) => setRenameName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+              autoFocus
+            />
+            <div className="flex items-center justify-end gap-3 mt-8">
+              <button onClick={() => setShowRenameModal(false)} disabled={renaming} className="px-6 py-3 text-gray-500 font-bold hover:text-gray-700 transition-colors">Cancel</button>
+              <button
+                onClick={handleRename}
+                disabled={renaming || !renameName.trim()}
+                className="px-8 py-3 bg-primary text-white rounded-xl font-bold hover:shadow-lg shadow-pink-200 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-60"
+              >
+                {renaming && <RefreshCw size={14} className="animate-spin" />}
+                Rename
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
