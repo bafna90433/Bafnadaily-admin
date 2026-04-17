@@ -17,6 +17,7 @@ import AnalyticsPage from './pages/AnalyticsPage'
 import InventoryPage from './pages/InventoryPage'
 import StaffReportsPage from './pages/StaffReportsPage'
 import DealsOfDayPage from './pages/DealsOfDayPage'
+import PurchaseOrderPage from './pages/PurchaseOrderPage'
 
 const isAdmin = () => !!localStorage.getItem('adminToken')
 
@@ -57,6 +58,7 @@ const App: React.FC = () => (
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="staff-reports" element={<StaffReportsPage />} />
         <Route path="deals-of-day" element={<DealsOfDayPage />} />
+        <Route path="purchase-order" element={<PurchaseOrderPage />} />
       </Route>
     </Routes>
   </BrowserRouter>
