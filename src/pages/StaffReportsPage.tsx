@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Download, Calendar, User, Search, RefreshCw, ImageIcon, ExternalLink, FileDown, Package, X, CheckSquare, Square, Folder, FolderPlus, ChevronRight, MoreVertical, Move, Copy, Trash2, ArrowLeft } from 'lucide-react'
+import { Download, Calendar, User, Search, RefreshCw, ImageIcon, ExternalLink, FileDown, Package, X, CheckSquare, Square, Folder, FolderPlus, ChevronRight, MoreVertical, Move, Copy, Trash2, ArrowLeft, MessageSquare, Send } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -55,6 +55,14 @@ const StaffReportsPage: React.FC = () => {
   const [renameFolder, setRenameFolder] = useState<StaffFolder | null>(null)
   const [renameName, setRenameName] = useState('')
   const [renaming, setRenaming] = useState(false)
+  
+  // Chat / Feedback States
+  const [messages, setMessages] = useState<any[]>([])
+  const [showChat, setShowChat] = useState(false)
+  const [chatMessage, setChatMessage] = useState('')
+  const [feedbackReportId, setFeedbackReportId] = useState<string | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const chatEndRef = React.useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchData()
@@ -64,18 +72,63 @@ const StaffReportsPage: React.FC = () => {
     try {
       setLoading(true)
       const folderParam = currentFolderId || 'root'
-      const [reportsRes, foldersRes] = await Promise.all([
+      const [reportsRes, foldersRes, feedbackRes] = await Promise.all([
         api.get(`/staff-reports?folderId=${folderParam}`),
-        api.get(`/staff-reports/folders?parentId=${folderParam}`)
+        api.get(`/staff-reports/folders?parentId=${folderParam}`),
+        api.get(`/staff-reports/feedback/${folderParam}`)
       ])
       
       if (reportsRes.data.success) setReports(reportsRes.data.reports)
       if (foldersRes.data.success) setFolders(foldersRes.data.folders)
+      if (feedbackRes.data?.success) {
+        const msgs = feedbackRes.data.messages || []
+        setMessages(msgs)
+        setUnreadCount(msgs.filter((m: any) => !m.isRead && m.sender === 'staff').length)
+      }
     } catch (err: any) {
       toast.error('Failed to load data')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOpenChat = async () => {
+    setShowChat(true)
+    if (unreadCount > 0) {
+      try {
+        await api.patch(`/staff-reports/feedback/read/${currentFolderId || 'root'}`)
+        setUnreadCount(0)
+        setMessages(prev => prev.map(m => ({ ...m, isRead: true })))
+      } catch (err) { console.log(err) }
+    }
+  }
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!chatMessage.trim()) return
+    try {
+      const res = await api.post('/staff-reports/feedback', {
+        folderId: currentFolderId || 'root',
+        reportId: feedbackReportId,
+        message: chatMessage,
+        sender: 'admin',
+        staffName: 'Admin'
+      })
+      if (res.data.success) {
+        setMessages(prev => [...prev, res.data.feedback])
+        setChatMessage('')
+        setFeedbackReportId(null)
+        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+      }
+    } catch (err) {
+      toast.error('Failed to send message')
+    }
+  }
+
+  const startFeedback = (reportId: string) => {
+    setFeedbackReportId(reportId)
+    setShowChat(true)
+    setChatMessage('Re-upload requested for this image: ')
   }
 
   const handleCreateFolder = async () => {
@@ -109,10 +162,10 @@ const StaffReportsPage: React.FC = () => {
     formData.append('image', selectedFile)
     formData.append('staffName', uploadStaffName)
     if (uploadProductCode) formData.append('productCode', uploadProductCode)
-    if (currentFolderId) formData.append('folderId', currentFolderId)
+    formData.append('folderId', currentFolderId || 'root')
 
     try {
-      await api.post('/staff-reports/upload', formData, {
+      await api.post('/staff-reports', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       toast.success('Report uploaded successfully')
@@ -334,9 +387,9 @@ const StaffReportsPage: React.FC = () => {
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-pink-700 transition-all font-semibold shadow-sm"
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-pink-700 transition-all text-xs font-bold shadow-sm"
           >
-            <ImageIcon size={18} />
+            <ImageIcon size={14} />
             Upload Report
           </button>
           <button 
@@ -345,6 +398,18 @@ const StaffReportsPage: React.FC = () => {
           >
             <FolderPlus size={18} className="text-green-500" />
             New Folder
+          </button>
+          <button 
+            onClick={handleOpenChat}
+            className="p-2.5 bg-pink-50 text-primary rounded-xl hover:bg-pink-100 transition-colors shadow-sm relative"
+            title="Folder Chat"
+          >
+            <MessageSquare size={20} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white font-bold">
+                {unreadCount}
+              </span>
+            )}
           </button>
           <button 
             onClick={fetchData}
@@ -408,6 +473,13 @@ const StaffReportsPage: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                                     <button
+                                        onClick={(e) => { e.stopPropagation(); setSelectedFile(null); setCurrentFolderId(folder._id); setPath([...path, { id: folder._id, name: folder.name }]); fileInputRef.current?.click(); }}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-primary hover:bg-pink-50 opacity-0 group-hover:opacity-100 transition-all"
+                                        title="Upload to this folder"
+                                    >
+                                        <ImageIcon size={13} />
+                                    </button>
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); openRenameModal(folder); }}
                                         className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-blue-500 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all"
                                         title="Rename"
@@ -438,7 +510,20 @@ const StaffReportsPage: React.FC = () => {
             <div className="space-y-4">
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Media Files</h3>
                 {filteredReports.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-200 border-dashed opacity-40"><ImageIcon size={64} className="text-gray-300 mb-4" /><p className="text-gray-500 text-lg font-medium">No files in directory</p></div>
+                    <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-200 border-dashed animate-in fade-in duration-500">
+                        <div className="p-4 bg-gray-50 rounded-3xl mb-4">
+                            <ImageIcon size={48} className="text-gray-300" />
+                        </div>
+                        <p className="text-gray-500 text-lg font-bold mb-2">No files in directory</p>
+                        <p className="text-sm text-gray-400 mb-6">Start by uploading a report to this folder</p>
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:shadow-lg transition-all active:scale-95"
+                        >
+                            <ImageIcon size={18} />
+                            Upload First Report
+                        </button>
+                    </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                     {filteredReports.map((report) => (
@@ -458,6 +543,13 @@ const StaffReportsPage: React.FC = () => {
                             title="Delete image"
                         >
                             <Trash2 size={13} />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); startFeedback(report._id); }}
+                            className="absolute top-12 right-3 z-10 w-7 h-7 rounded-lg bg-pink-600 text-white shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-pink-700 hover:scale-110"
+                            title="Request Re-upload"
+                        >
+                            <MessageSquare size={13} />
                         </button>
                         
                         <div className="aspect-square bg-gray-50 overflow-hidden cursor-zoom-in relative" onClick={() => setPreviewImage(report.imageUrl)}>
@@ -676,6 +768,97 @@ const StaffReportsPage: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Chat Sidebar */}
+      {showChat && (
+        <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-[100] flex flex-col animate-in slide-in-from-right duration-300">
+          <div className="p-4 border-b flex items-center justify-between bg-pink-50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-pink-600 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+                <MessageSquare size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800">Folder Instructions</h3>
+                <p className="text-[10px] text-pink-600 font-bold uppercase tracking-wider">{path[path.length-1].name}</p>
+              </div>
+            </div>
+            <button onClick={() => setShowChat(false)} className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center">
+                  <MessageSquare size={40} className="text-slate-200" />
+                </div>
+                <p className="text-sm font-medium">No instructions sent yet.</p>
+              </div>
+            ) : (
+              messages.map((m, idx) => {
+                const isAdmin = m.sender === 'admin'
+                return (
+                  <div key={idx} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${
+                      isAdmin 
+                        ? 'bg-pink-600 text-white rounded-br-none' 
+                        : 'bg-white text-slate-700 border border-slate-200 rounded-bl-none'
+                    }`}>
+                      {m.reportId && (
+                        <div className={`flex items-center gap-2 p-2 rounded-lg mb-2 text-xs border ${
+                          isAdmin ? 'bg-pink-700/50 border-pink-500/50' : 'bg-slate-50 border-slate-100'
+                        }`}>
+                          <img src={m.reportId.imageUrl} className="w-8 h-8 rounded object-cover shadow-sm" alt="ref" />
+                          <span className="font-bold opacity-80 truncate">Ref: {m.reportId.productCode || 'Image'}</span>
+                        </div>
+                      )}
+                      <p className="text-sm leading-relaxed">{m.message}</p>
+                      <div className={`text-[10px] mt-2 font-medium opacity-60 ${isAdmin ? 'text-pink-100' : 'text-slate-400'}`}>
+                        {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {!isAdmin && ` • ${m.staffName}`}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          <form onSubmit={handleSendMessage} className="p-4 border-t bg-white">
+            {feedbackReportId && (
+              <div className="bg-pink-50 p-2 rounded-lg mb-3 flex items-center justify-between border border-pink-100 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded bg-pink-200 overflow-hidden flex-shrink-0">
+                    <img src={reports.find(r => r._id === feedbackReportId)?.imageUrl} className="w-full h-full object-cover" alt="ref" />
+                  </div>
+                  <span className="text-xs font-bold text-pink-700">Linking message to this photo</span>
+                </div>
+                <button type="button" onClick={() => setFeedbackReportId(null)} className="text-pink-400 hover:text-pink-600">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            <div className="relative flex items-center">
+              <input 
+                type="text"
+                placeholder="Type your instructions..."
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                className="w-full pl-4 pr-12 py-3 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm"
+              />
+              <button 
+                type="submit"
+                disabled={!chatMessage.trim()}
+                className="absolute right-2 p-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50 transition-all font-bold"
+              >
+                <Send size={18} />
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
