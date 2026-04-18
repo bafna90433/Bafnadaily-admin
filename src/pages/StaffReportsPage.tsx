@@ -34,6 +34,14 @@ const StaffReportsPage: React.FC = () => {
   const [showFolderModal, setShowFolderModal] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   
+  // Upload State
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadStaffName, setUploadStaffName] = useState('Admin')
+  const [uploadProductCode, setUploadProductCode] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
   const [showMoveModal, setShowMoveModal] = useState(false)
   const [isCopyMode, setIsCopyMode] = useState(false)
   const [allFoldersForPicker, setAllFoldersForPicker] = useState<StaffFolder[]>([])
@@ -86,9 +94,47 @@ const StaffReportsPage: React.FC = () => {
     }
   }
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      setShowUploadModal(true)
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!selectedFile) return
+    setUploading(true)
+    const formData = new FormData()
+    formData.append('image', selectedFile)
+    formData.append('staffName', uploadStaffName)
+    if (uploadProductCode) formData.append('productCode', uploadProductCode)
+    if (currentFolderId) formData.append('folderId', currentFolderId)
+
+    try {
+      await api.post('/staff-reports/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      toast.success('Report uploaded successfully')
+      setShowUploadModal(false)
+      setSelectedFile(null)
+      fetchData()
+    } catch (err) {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const navigateToFolder = (folder: StaffFolder) => {
     setCurrentFolderId(folder._id)
     setPath([...path, { id: folder._id, name: folder.name }])
+  }
+
+  const handleBack = () => {
+    if (path.length > 1) {
+      navigateBack(path.length - 2)
+    }
   }
 
   const navigateBack = (index: number) => {
@@ -245,6 +291,15 @@ const StaffReportsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-4">
+          {path.length > 1 && (
+            <button 
+              onClick={handleBack}
+              className="p-2.5 bg-gray-50 text-gray-400 hover:text-primary hover:bg-pink-50 rounded-xl transition-all"
+              title="Go Back"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
           <div className="p-3 bg-pink-50 rounded-xl text-primary">
             <Folder size={24} />
           </div>
@@ -270,6 +325,20 @@ const StaffReportsPage: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept="image/*" 
+            onChange={handleFileSelect} 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-pink-700 transition-all font-semibold shadow-sm"
+          >
+            <ImageIcon size={18} />
+            Upload Report
+          </button>
           <button 
             onClick={() => setShowFolderModal(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold shadow-sm"
@@ -540,6 +609,70 @@ const StaffReportsPage: React.FC = () => {
               >
                 {renaming && <RefreshCw size={14} className="animate-spin" />}
                 Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Report Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <ImageIcon className="text-primary" /> Upload Report
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Staff Name</label>
+                <input
+                  type="text"
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-50 focus:border-primary transition-all font-medium"
+                  placeholder="Enter staff name"
+                  value={uploadStaffName}
+                  onChange={(e) => setUploadStaffName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Product Code (Optional)</label>
+                <input
+                  type="text"
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-50 focus:border-primary transition-all font-medium"
+                  placeholder="e.g. P101, CH-001"
+                  value={uploadProductCode}
+                  onChange={(e) => setUploadProductCode(e.target.value.toUpperCase())}
+                />
+              </div>
+              
+              {selectedFile && (
+                <div className="p-4 bg-pink-50 rounded-2xl border border-pink-100 flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
+                    <img src={URL.createObjectURL(selectedFile)} className="w-full h-full object-cover" alt="preview" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-gray-700 truncate">{selectedFile.name}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-8">
+              <button 
+                onClick={() => { setShowUploadModal(false); setSelectedFile(null); }} 
+                disabled={uploading}
+                className="px-6 py-3 text-gray-500 font-bold hover:text-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpload}
+                disabled={uploading || !uploadStaffName.trim()}
+                className="px-8 py-3 bg-primary text-white rounded-xl font-bold hover:shadow-lg shadow-pink-200 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-60"
+              >
+                {uploading && <RefreshCw size={14} className="animate-spin" />}
+                {uploading ? 'Uploading...' : 'Upload'}
               </button>
             </div>
           </div>
