@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Download, Calendar, User, Search, RefreshCw, ImageIcon, ExternalLink, FileDown, Package, X, CheckSquare, Square, Folder, FolderPlus, ChevronRight, MoreVertical, Move, Copy, Trash2, ArrowLeft, MessageSquare, Send } from 'lucide-react'
+import { Download, Calendar, User, Search, RefreshCw, ImageIcon, ExternalLink, FileDown, Package, X, CheckSquare, Square, Folder, FolderPlus, ChevronRight, MoreVertical, Move, Copy, Trash2, ArrowLeft, MessageSquare, Send, Mic, Trash, Circle } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -64,6 +64,13 @@ const StaffReportsPage: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0)
   const chatEndRef = React.useRef<HTMLDivElement>(null)
 
+  // Recording states
+  const [isRecording, setIsRecording] = useState(false)
+  const [recorder, setRecorder] = useState<MediaRecorder | null>(null)
+  const [recordDuration, setRecordDuration] = useState(0)
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false)
+  const recordInterval = React.useRef<any>(null)
+
   useEffect(() => {
     fetchData()
   }, [currentFolderId])
@@ -103,17 +110,34 @@ const StaffReportsPage: React.FC = () => {
     }
   }
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent, audioBlob?: Blob, duration?: number) => {
     if (e) e.preventDefault()
-    if (!chatMessage.trim()) return
+    if (!chatMessage.trim() && !audioBlob) return
+
     try {
-      const res = await api.post('/staff-reports/feedback', {
-        folderId: currentFolderId || 'root',
+      const folderParam = currentFolderId || 'root'
+      let payload: any = {
+        folderId: folderParam,
         reportId: feedbackReportId,
         message: chatMessage,
         sender: 'admin',
-        staffName: 'Admin'
-      })
+        audioDuration: duration
+      }
+
+      let headers: any = {}
+
+      if (audioBlob) {
+        payload = new FormData()
+        payload.append('folderId', folderParam)
+        if (feedbackReportId) payload.append('reportId', feedbackReportId)
+        payload.append('message', chatMessage)
+        payload.append('sender', 'admin')
+        payload.append('audioDuration', duration?.toString() || '0')
+        payload.append('audio', audioBlob, 'admin_voice.webm')
+        headers = { 'Content-Type': 'multipart/form-data' }
+      }
+
+      const res = await api.post('/staff-reports/feedback', payload, { headers })
       if (res.data.success) {
         setMessages(prev => [...prev, res.data.feedback])
         setChatMessage('')
@@ -123,6 +147,50 @@ const StaffReportsPage: React.FC = () => {
     } catch (err) {
       toast.error('Failed to send message')
     }
+  }
+
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const newRecorder = new MediaRecorder(stream)
+      const chunks: BlobPart[] = []
+
+      newRecorder.ondataavailable = (e) => chunks.push(e.data)
+      newRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' })
+        handleSendMessage(undefined, blob, recordDuration)
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      newRecorder.start()
+      setRecorder(newRecorder)
+      setIsRecording(true)
+      setRecordDuration(0)
+      recordInterval.current = setInterval(() => {
+        setRecordDuration(curr => curr + 1)
+      }, 1000)
+    } catch (err) {
+      toast.error('Microphone access denied')
+    }
+  }
+
+  const handleStopRecording = () => {
+    if (recorder && isRecording) {
+      recorder.stop()
+      setIsRecording(false)
+      clearInterval(recordInterval.current)
+    }
+  }
+
+  const handleCancelRecording = () => {
+    if (recorder) {
+      recorder.onstop = null
+      recorder.stop()
+      recorder.stream.getTracks().forEach(track => track.stop())
+    }
+    setIsRecording(false)
+    clearInterval(recordInterval.current)
+    setRecorder(null)
   }
 
   const startFeedback = (reportId: string) => {
@@ -815,7 +883,19 @@ const StaffReportsPage: React.FC = () => {
                           <span className="font-bold opacity-80 truncate">Ref: {m.reportId.productCode || 'Image'}</span>
                         </div>
                       )}
-                      <p className="text-sm leading-relaxed">{m.message}</p>
+                      {m.audioUrl ? (
+                        <div className="flex flex-col gap-2 min-w-[200px]">
+                          <audio controls className="w-full h-8 custom-audio-player">
+                            <source src={m.audioUrl} type="audio/mpeg" />
+                            Your browser does not support the audio element.
+                          </audio>
+                          <p className="text-[10px] font-bold opacity-60">
+                            Voice Message • {Math.floor((m.audioDuration || 0) / 60)}:{(m.audioDuration || 0) % 60 < 10 ? '0' : ''}{(m.audioDuration || 0) % 60}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-relaxed">{m.message}</p>
+                      )}
                       <div className={`text-[10px] mt-2 font-medium opacity-60 ${isAdmin ? 'text-pink-100' : 'text-slate-400'}`}>
                         {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         {!isAdmin && ` • ${m.staffName}`}
@@ -842,21 +922,44 @@ const StaffReportsPage: React.FC = () => {
                 </button>
               </div>
             )}
-            <div className="relative flex items-center">
-              <input 
-                type="text"
-                placeholder="Type your instructions..."
-                value={chatMessage}
-                onChange={(e) => setChatMessage(e.target.value)}
-                className="w-full pl-4 pr-12 py-3 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm"
-              />
+            <div className="relative flex items-center gap-2">
               <button 
-                type="submit"
-                disabled={!chatMessage.trim()}
-                className="absolute right-2 p-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50 transition-all font-bold"
+                type="button"
+                onClick={isRecording ? handleStopRecording : handleStartRecording}
+                className={`p-3 rounded-xl transition-all ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
               >
-                <Send size={18} />
+                {isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={18} />}
               </button>
+              
+              {isRecording ? (
+                <div className="flex-1 flex items-center justify-between px-4 py-3 bg-red-50 rounded-xl border border-red-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                    <span className="text-sm font-bold text-red-600">Recording... {Math.floor(recordDuration / 60)}:{(recordDuration % 60).toString().padStart(2, '0')}</span>
+                  </div>
+                  <button type="button" onClick={handleCancelRecording} className="text-red-400 hover:text-red-600">
+                    <Trash size={16} />
+                  </button>
+                </div>
+              ) : (
+                <input 
+                  type="text"
+                  placeholder="Type your instructions..."
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  className="w-full pl-4 pr-12 py-3 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm"
+                />
+              )}
+
+              {!isRecording && (
+                <button 
+                  type="submit"
+                  disabled={!chatMessage.trim()}
+                  className="absolute right-2 p-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50 transition-all font-bold"
+                >
+                  <Send size={18} />
+                </button>
+              )}
             </div>
           </form>
         </div>
