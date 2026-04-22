@@ -1,3 +1,4 @@
+// Admin Users Page - Upgraded with Detail Modal
 import React, { useEffect, useState } from 'react'
 import { Search, Eye, X, CheckCircle, ExternalLink, Image as ImageIcon, MessageCircle } from 'lucide-react'
 import api from '../utils/api'
