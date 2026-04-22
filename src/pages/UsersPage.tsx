@@ -68,8 +68,8 @@ const UsersPage: React.FC = () => {
                   </td>
                   <td className="td text-center">
                     <div className="flex items-center justify-center gap-2">
-                      {u.whatsapp && <MessageCircle size={14} className="text-green-500" title={`WA: ${u.whatsapp}`}/>}
-                      {u.visitingCard && <ImageIcon size={14} className="text-blue-500" title="Visiting Card Available"/>}
+                      {u.whatsapp && <span title={`WA: ${u.whatsapp}`}><MessageCircle size={14} className="text-green-500"/></span>}
+                      {u.visitingCard && <span title="Visiting Card Available"><ImageIcon size={14} className="text-blue-500"/></span>}
                       {u.addresses?.length > 0 && <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold" title={`${u.addresses.length} addresses`}>{u.addresses.length}A</span>}
                     </div>
                   </td>
