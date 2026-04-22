@@ -1,6 +1,6 @@
 // Admin Users Page - Upgraded with Detail Modal
 import React, { useEffect, useState } from 'react'
-import { Search, Eye, X, CheckCircle, ExternalLink, Image as ImageIcon, MessageCircle } from 'lucide-react'
+import { Search, Eye, X, CheckCircle, ExternalLink, Image as ImageIcon, MessageCircle, Trash2 } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -18,6 +18,15 @@ const UsersPage: React.FC = () => {
     api.get(`/admin/users?${p}`).then(r => { setUsers(r.data.users); setTotal(r.data.total) }).finally(() => setLoading(false))
   }
   useEffect(() => { fetch() }, [search])
+
+  const deleteUser = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this customer? All their data will be removed.')) return
+    try {
+      await api.delete(`/admin/users/${id}`)
+      toast.success('User deleted')
+      fetch()
+    } catch { toast.error('Failed to delete') }
+  }
 
   const isNewUser = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime()
@@ -76,9 +85,14 @@ const UsersPage: React.FC = () => {
                   </td>
                   <td className="td text-gray-400 text-[11px] whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}</td>
                   <td className="td text-right">
-                    <button onClick={() => setSelectedUser(u)} className="p-2 hover:bg-white hover:shadow-md rounded-lg transition-all text-gray-400 hover:text-primary active:scale-90">
-                      <Eye size={16}/>
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setSelectedUser(u)} className="p-2 hover:bg-white hover:shadow-md rounded-lg transition-all text-gray-400 hover:text-primary active:scale-90" title="View Details">
+                        <Eye size={16}/>
+                      </button>
+                      <button onClick={() => deleteUser(u._id)} className="p-2 hover:bg-red-50 rounded-lg transition-all text-gray-400 hover:text-red-500 active:scale-90" title="Delete User">
+                        <Trash2 size={16}/>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
