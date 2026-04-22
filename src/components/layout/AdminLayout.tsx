@@ -2,13 +2,14 @@ import React, { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Package, ShoppingBag, Tag, Users,
-  Image, Ticket, Settings, Menu, X, LogOut, Bell, ExternalLink, UserCheck, BarChart3, QrCode, Boxes, Flame, ClipboardList
+  Image, Ticket, Settings, Menu, X, LogOut, Bell, ExternalLink, UserCheck, BarChart3, QrCode, Boxes, Flame, ClipboardList, ShoppingCart
 } from 'lucide-react'
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/products', icon: Package, label: 'Products' },
   { to: '/orders', icon: ShoppingBag, label: 'Orders' },
+  { to: '/abandoned-carts', icon: ShoppingCart, label: 'Abandoned Carts' },
   { to: '/categories', icon: Tag, label: 'Categories' },
   { to: '/customers', icon: UserCheck, label: 'Customers' },
   { to: '/users', icon: Users, label: 'Users (All)' },
