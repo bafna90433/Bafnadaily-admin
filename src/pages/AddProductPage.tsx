@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Upload, X, ArrowLeft, Loader2, QrCode, Zap, Printer } from 'lucide-react'
+import { Upload, X, ArrowLeft, Loader2, QrCode, Zap, Printer, Plus, Search, Star, ChevronLeft, ChevronRight, RefreshCw, Trash2 } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 import Barcode from 'react-barcode'
@@ -27,6 +27,8 @@ const AddProductPage: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [quickSearch, setQuickSearch] = useState('')
+  const [quickResults, setQuickResults] = useState<any[]>([])
 
   useEffect(() => {
     api.get('/categories/all').then(r => setCategories(r.data.categories))
@@ -49,8 +51,21 @@ const AddProductPage: React.FC = () => {
           perPacketText: p.perPacketText || ''
         })
       }).catch(() => navigate('/products'))
+    } else {
+      setForm(INIT)
     }
-  }, [id])
+  }, [id, isEdit])
+
+  useEffect(() => {
+    if (quickSearch.length > 2) {
+      const t = setTimeout(() => {
+        api.get(`/products?search=${quickSearch}&limit=5&admin=true`).then(r => setQuickResults(r.data.products))
+      }, 300)
+      return () => clearTimeout(t)
+    } else {
+      setQuickResults([])
+    }
+  }, [quickSearch])
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }))
 
@@ -67,6 +82,37 @@ const AddProductPage: React.FC = () => {
   }
 
   const removeImg = (idx: number) => setForm(f => ({ ...f, images: f.images.filter((_,i) => i !== idx) }))
+
+  const moveImg = (idx: number, dir: 'left' | 'right') => {
+    const newImgs = [...form.images]
+    const target = dir === 'left' ? idx - 1 : idx + 1
+    if (target < 0 || target >= newImgs.length) return
+    [newImgs[idx], newImgs[target]] = [newImgs[target], newImgs[idx]]
+    set('images', newImgs)
+  }
+
+  const setMainImg = (idx: number) => {
+    const newImgs = [...form.images]
+    const [main] = newImgs.splice(idx, 1)
+    newImgs.unshift(main)
+    set('images', newImgs)
+    toast.success('Main image updated!')
+  }
+
+  const replaceImg = async (idx: number, files: FileList) => {
+    if (!files.length) return
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('images', files[0])
+      fd.append('folder', 'products')
+      const res = await api.post('/upload/images', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      const newImgs = [...form.images]
+      newImgs[idx] = { ...newImgs[idx], url: res.data.images[0].url, fileId: res.data.images[0].fileId }
+      set('images', newImgs)
+      toast.success('Image replaced!')
+    } catch { toast.error('Replace failed') } finally { setUploading(false) }
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,10 +151,10 @@ const AddProductPage: React.FC = () => {
         toast.success('Product updated!'); 
       }
       else { 
-        await api.post('/products', payload); 
+        const res = await api.post('/products', payload); 
         toast.success('Product created!'); 
+        navigate(`/products/edit/${res.data.product._id}`, { replace: true });
       }
-      navigate('/products')
     } catch (err: any) { 
       console.error('Submit Error:', err.response?.data || err.message);
       toast.error(err.response?.data?.message || 'Failed to save product. Check console for details.'); 
@@ -179,9 +225,66 @@ const AddProductPage: React.FC = () => {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate('/products')} className="p-2 hover:bg-gray-200 rounded-lg transition-colors"><ArrowLeft size={20}/></button>
-        <div><h1 className="text-2xl font-bold">{isEdit ? 'Edit Product' : 'Add New Product'}</h1><p className="text-gray-500 text-sm">Fill in the product details</p></div>
+      <div className="flex items-center justify-between mb-6 gap-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/products')} className="p-2 hover:bg-gray-200 rounded-lg transition-colors"><ArrowLeft size={20}/></button>
+          <div className="hidden md:block">
+            <h1 className="text-2xl font-bold">{isEdit ? 'Edit Product' : 'Add New Product'}</h1>
+            <p className="text-gray-500 text-sm">Fill in the product details</p>
+          </div>
+        </div>
+
+        {/* Quick Search to Edit */}
+        <div className="flex-1 max-w-sm relative group">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+            <input 
+              value={quickSearch} 
+              onChange={e => setQuickSearch(e.target.value)} 
+              className="w-full bg-gray-100 border-0 rounded-xl pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none" 
+              placeholder="Quick search to edit another product..."
+            />
+            {quickSearch && (
+              <button onClick={() => setQuickSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600">
+                <X size={14}/>
+              </button>
+            )}
+          </div>
+          {quickResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 z-[60] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="p-2 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-100">Search Results</div>
+              {quickResults.map(p => (
+                <button 
+                  key={p._id} 
+                  type="button"
+                  onClick={() => { navigate(`/products/edit/${p._id}`); setQuickSearch(''); setQuickResults([]) }}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-primary/5 text-left transition-colors border-b border-gray-50 last:border-0"
+                >
+                  <img src={p.images?.[0]?.url || 'https://placehold.co/40x40?text=P'} className="w-10 h-10 rounded-lg object-cover shadow-sm" alt="" />
+                  <div className="overflow-hidden flex-1">
+                    <p className="text-xs font-bold text-gray-800 truncate">{p.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{p.sku || 'NO-SKU'}</span>
+                      <span className="text-[10px] font-bold text-primary">₹{p.price}</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isEdit && (
+            <button 
+              type="button" 
+              onClick={() => navigate('/products/add')} 
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:opacity-90 transition-all active:scale-95 shadow-md shadow-primary/20"
+            >
+              <Plus size={18}/> <span className="hidden sm:inline">Add New</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <form onSubmit={submit}>
@@ -238,24 +341,60 @@ const AddProductPage: React.FC = () => {
 
             {/* Images */}
             <div className="card p-5">
-              <h3 className="font-bold text-gray-800 border-b pb-3 mb-4">Product Images <span className="text-gray-400 font-normal text-sm">(Uploaded to ImageKit CDN)</span></h3>
-              <div className="flex flex-wrap gap-3">
+              <h3 className="font-bold text-gray-800 border-b pb-3 mb-4 flex items-center justify-between">
+                <div>Product Images <span className="text-gray-400 font-normal text-sm ml-2">(Uploaded to ImageKit)</span></div>
+                {form.images.length > 0 && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">{form.images.length} IMAGES</span>}
+              </h3>
+              <div className="flex flex-wrap gap-4">
                 {form.images.map((img, i) => (
-                  <div key={i} className="relative w-32 h-40 rounded-xl overflow-hidden border-2 border-gray-200 group flex flex-col">
-                    <div className="relative flex-1">
-                      <img src={img.url} alt="" className="w-full h-full object-cover"/>
-                      <button type="button" onClick={() => removeImg(i)} className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                        <X size={20} className="text-white"/>
-                      </button>
-                      {i === 0 && <span className="absolute bottom-0 inset-x-0 text-center text-[9px] bg-primary text-white py-0.5 font-bold">MAIN</span>}
+                  <div key={i} className={`relative w-36 h-48 rounded-2xl overflow-hidden border-2 transition-all group flex flex-col ${i===0?'border-primary shadow-lg shadow-primary/10':'border-gray-100 hover:border-gray-300'}`}>
+                    <div className="relative flex-1 bg-gray-50 overflow-hidden">
+                      <img src={img.url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"/>
+                      
+                      {/* Status Badges */}
+                      <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+                        {i === 0 && <span className="px-2 py-0.5 bg-primary text-white text-[9px] font-black rounded-lg shadow-lg uppercase tracking-wider">MAIN</span>}
+                        {img.colorName && <span className="px-2 py-0.5 bg-white/90 backdrop-blur-sm text-gray-800 text-[8px] font-black rounded-lg shadow-sm border border-gray-100 uppercase">{img.colorName}</span>}
+                      </div>
+
+                      {/* Controls Overlay */}
+                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-2 p-2 backdrop-blur-[1px]">
+                        <div className="flex items-center gap-1.5">
+                          {i > 0 && (
+                            <button type="button" onClick={() => moveImg(i, 'left')} className="p-2 bg-white/20 hover:bg-white text-white hover:text-primary rounded-full transition-all active:scale-90 shadow-sm" title="Move Left">
+                              <ChevronLeft size={16}/>
+                            </button>
+                          )}
+                          <button type="button" onClick={() => setMainImg(i)} className={`p-2 rounded-full transition-all active:scale-90 shadow-sm ${i===0?'bg-yellow-400 text-white cursor-default':'bg-white/20 hover:bg-white text-white hover:text-yellow-500'}`} title={i===0?'Main Image':'Set as Main'}>
+                            <Star size={16} fill={i===0?'currentColor':'none'}/>
+                          </button>
+                          {i < form.images.length - 1 && (
+                            <button type="button" onClick={() => moveImg(i, 'right')} className="p-2 bg-white/20 hover:bg-white text-white hover:text-primary rounded-full transition-all active:scale-90 shadow-sm" title="Move Right">
+                              <ChevronRight size={16}/>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <label className="p-2 bg-white/20 hover:bg-white text-white hover:text-blue-600 rounded-full cursor-pointer transition-all active:scale-90 shadow-sm" title="Replace Image">
+                            <RefreshCw size={16}/>
+                            <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files && replaceImg(i, e.target.files)}/>
+                          </label>
+                          <button type="button" onClick={() => removeImg(i)} className="p-2 bg-white/20 hover:bg-red-500 text-white rounded-full transition-all active:scale-90 shadow-sm" title="Remove Image">
+                            <Trash2 size={16}/>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="bg-gray-50 border-t p-1.5">
+
+                    {/* Color Association */}
+                    <div className="bg-white border-t border-gray-100 p-2">
                       <select 
                         value={img.colorName || ''} 
                         onChange={e => {
                           const newImgs = [...form.images]; newImgs[i].colorName = e.target.value; set('images', newImgs)
                         }}
-                        className="w-full text-[10px] font-bold bg-transparent border-0 outline-none cursor-pointer text-gray-600"
+                        className="w-full text-[10px] font-black bg-gray-50 rounded-lg px-2 py-1 outline-none cursor-pointer text-gray-600 hover:bg-gray-100 transition-colors border-0 uppercase tracking-tighter"
                       >
                         <option value="">No Color</option>
                         {form.colors.filter(c => c.name).map((c, ci) => (
@@ -265,12 +404,29 @@ const AddProductPage: React.FC = () => {
                     </div>
                   </div>
                 ))}
-                <label className={`w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors ${uploading?'opacity-50 pointer-events-none':''}`}>
-                  {uploading ? <Loader2 size={22} className="text-primary animate-spin"/> : <><Upload size={22} className="text-gray-400 mb-1"/><span className="text-xs text-gray-400 font-medium">Upload</span></>}
+                
+                {/* Upload Placeholder */}
+                <label className={`w-36 h-48 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 hover:border-solid transition-all group overflow-hidden ${uploading?'opacity-50 pointer-events-none':''}`}>
+                  <div className="flex flex-col items-center justify-center p-4 text-center">
+                    {uploading ? (
+                      <Loader2 size={24} className="text-primary animate-spin"/>
+                    ) : (
+                      <>
+                        <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mb-2 group-hover:bg-primary group-hover:text-white transition-colors">
+                          <Upload size={20}/>
+                        </div>
+                        <span className="text-xs text-gray-500 font-bold">Add Images</span>
+                        <span className="text-[10px] text-gray-400 mt-1">PNG, JPG up to 10MB</span>
+                      </>
+                    )}
+                  </div>
                   <input type="file" multiple accept="image/*" className="hidden" onChange={e => e.target.files && uploadImages(e.target.files)} disabled={uploading}/>
                 </label>
               </div>
-              <p className="text-xs text-gray-400 mt-3">First image = main product image. Drag to reorder. Max 10 images.</p>
+              <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-400 font-medium bg-gray-50 p-2 rounded-lg border border-gray-100">
+                <Star size={10} className="text-yellow-500 fill-yellow-500"/>
+                <span>The first image is used as the **Main Product Image**. Use the arrows to reorder or the star to set a new main image.</span>
+              </div>
             </div>
           </div>
 

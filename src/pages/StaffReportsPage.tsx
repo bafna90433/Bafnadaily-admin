@@ -28,6 +28,7 @@ const StaffReportsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>([])
 
@@ -511,7 +512,18 @@ const StaffReportsPage: React.FC = () => {
 
             {/* Media/Reports Section */}
             <div className="space-y-4">
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Media Files</h3>
+                <div className="flex items-center justify-between px-1">
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Media Files</h3>
+                    {filteredReports.length > 0 && (
+                        <button 
+                            onClick={() => setGalleryIndex(0)}
+                            className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all text-[10px] font-black border border-green-200"
+                        >
+                            <ImageIcon size={12} />
+                            VIEW AS GALLERY
+                        </button>
+                    )}
+                </div>
                 {filteredReports.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-200 border-dashed animate-in fade-in duration-500">
                         <div className="p-4 bg-gray-50 rounded-3xl mb-4">
@@ -636,10 +648,48 @@ const StaffReportsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Preview Modal */}
-      {previewImage && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/95" onClick={() => setPreviewImage(null)}>
-          <img src={previewImage} className="max-w-full max-h-full rounded-2xl shadow-2xl" alt="" />
+      {/* Preview Modal / Gallery */}
+      {(previewImage || galleryIndex !== null) && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/95 select-none">
+          <button 
+            onClick={() => { setPreviewImage(null); setGalleryIndex(null); }}
+            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-20"
+          >
+            <X size={24} />
+          </button>
+
+          {/* Navigation Controls for Gallery */}
+          {galleryIndex !== null && filteredReports.length > 1 && (
+            <>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setGalleryIndex(prev => prev! > 0 ? prev! - 1 : filteredReports.length - 1) }}
+                className="absolute left-6 top-1/2 -translate-y-1/2 p-4 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-20"
+              >
+                <ArrowLeft size={32} />
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setGalleryIndex(prev => prev! < filteredReports.length - 1 ? prev! + 1 : 0) }}
+                className="absolute right-6 top-1/2 -translate-y-1/2 p-4 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-20"
+              >
+                <ChevronRight size={32} />
+              </button>
+            </>
+          )}
+
+          <div className="relative max-w-5xl w-full h-full flex flex-col items-center justify-center gap-4">
+            <img 
+               src={galleryIndex !== null ? filteredReports[galleryIndex].imageUrl : previewImage!} 
+               className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain animate-in zoom-in-95 duration-300" 
+               alt="" 
+            />
+            {galleryIndex !== null && (
+                <div className="bg-black/40 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 text-center">
+                    <p className="text-white font-black tracking-widest text-lg">{filteredReports[galleryIndex].productCode || 'NO CODE'}</p>
+                    <p className="text-white/60 text-[10px] font-bold uppercase mt-0.5">{filteredReports[galleryIndex].staffName} • {new Date(filteredReports[galleryIndex].createdAt).toLocaleDateString()}</p>
+                    <p className="text-primary text-[11px] font-black mt-2 bg-pink-50/10 rounded-full px-2">{galleryIndex + 1} / {filteredReports.length}</p>
+                </div>
+            )}
+          </div>
         </div>
       )}
 
