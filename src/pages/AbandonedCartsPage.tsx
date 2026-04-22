@@ -1,21 +1,37 @@
 import React, { useEffect, useState } from 'react'
-import { ShoppingCart, User, Clock, Trash2, MessageCircle, AlertCircle, ShoppingBag, Loader2 } from 'lucide-react'
+import { ShoppingCart, User, Clock, Trash2, MessageCircle, AlertCircle, ShoppingBag, Loader2, Eye, X } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
 const AbandonedCartsPage: React.FC = () => {
   const [carts, setCarts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedCart, setSelectedCart] = useState<any>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   const fetchCarts = async () => {
     setLoading(true)
     try {
-      const res = await api.get('/abandoned-carts')
+      const res = await api.get('/admin/abandoned-carts')
       setCarts(res.data.carts)
     } catch {
       toast.error('Failed to fetch abandoned carts')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const deleteCart = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this abandoned cart?')) return
+    setDeleting(id)
+    try {
+      await api.delete(`/admin/abandoned-carts/${id}`)
+      toast.success('Cart deleted')
+      fetchCarts()
+    } catch {
+      toast.error('Delete failed')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -133,6 +149,13 @@ const AbandonedCartsPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-5 text-center">
                         <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => setSelectedCart(cart)}
+                            className="p-2.5 text-blue-500 hover:bg-blue-50 rounded-xl transition-all shadow-sm"
+                            title="View Details"
+                          >
+                            <Eye size={18} />
+                          </button>
                           {cart.user?.phone && (
                             <a 
                               href={`https://wa.me/${cart.user.phone.replace(/\D/g, '')}?text=Hi ${cart.user.name}, we noticed you left some items in your cart at Bafna Daily. Would you like to complete your order?`} 
@@ -143,8 +166,13 @@ const AbandonedCartsPage: React.FC = () => {
                               <MessageCircle size={14} /> Recovery
                             </a>
                           )}
-                          <button className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                            <Trash2 size={18} />
+                          <button 
+                            onClick={() => deleteCart(cart._id)}
+                            disabled={deleting === cart._id}
+                            className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all disabled:opacity-50"
+                            title="Delete Cart"
+                          >
+                            {deleting === cart._id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
                           </button>
                         </div>
                       </td>
@@ -156,6 +184,106 @@ const AbandonedCartsPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* ── Detailed View Modal ── */}
+      {selectedCart && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setSelectedCart(null)}>
+          <div className="bg-white rounded-[32px] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
+                  <ShoppingCart size={28} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Cart Details</h2>
+                  <p className="text-sm text-slate-500 font-medium">{selectedCart.items.length} items in abandoned cart</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedCart(null)} className="p-3 text-slate-400 hover:text-slate-900 hover:bg-white rounded-2xl transition-all shadow-sm border border-transparent hover:border-slate-100">
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              {/* Customer Info Card */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-6 bg-slate-50 rounded-[24px] border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Customer Information</p>
+                  <div className="space-y-1">
+                    <p className="text-lg font-black text-slate-900 tracking-tight">{selectedCart.user?.name || 'Guest'}</p>
+                    <p className="text-sm text-slate-500 font-bold">{selectedCart.user?.phone || 'No phone number'}</p>
+                    {selectedCart.user?.whatsapp && <p className="text-xs text-green-600 font-black">✓ WhatsApp Verified</p>}
+                  </div>
+                </div>
+                <div className="p-6 bg-primary/5 rounded-[24px] border border-primary/10">
+                  <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-3">Cart Value</p>
+                  <div className="space-y-1">
+                    <p className="text-3xl font-black text-primary tracking-tighter">
+                      ₹{selectedCart.items.reduce((sum: number, it: any) => sum + (it.product?.price || 0) * it.quantity, 0).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-primary/60 font-black uppercase tracking-wider italic">Potential Sale</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-4">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <ShoppingBag size={12} /> Items in Cart
+                </p>
+                <div className="space-y-3">
+                  {selectedCart.items.map((item: any, i: number) => (
+                    <div key={i} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-[20px] hover:border-primary/20 transition-colors group">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden shadow-sm flex-shrink-0">
+                        <img src={item.product?.images?.[0]?.url || 'https://placehold.co/60x60?text=P'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-slate-900 truncate tracking-tight">{item.product?.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md uppercase">{item.product?.sku || 'NO-SKU'}</span>
+                          {item.variant && <span className="text-[10px] font-bold bg-primary/5 text-primary px-2 py-0.5 rounded-md uppercase">{item.variant}</span>}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-slate-900">₹{item.product?.price?.toLocaleString()}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Qty: {item.quantity}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-slate-400">
+                <Clock size={16} />
+                <span className="text-xs font-bold uppercase tracking-wider">Abandoned {new Date(selectedCart.updatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => deleteCart(selectedCart._id)}
+                  className="px-6 py-3 text-slate-400 hover:text-red-500 font-black text-[10px] uppercase tracking-widest transition-colors"
+                >
+                  Delete Cart
+                </button>
+                {selectedCart.user?.phone && (
+                  <a 
+                    href={`https://wa.me/${selectedCart.user.phone.replace(/\D/g, '')}?text=Hi ${selectedCart.user.name}, we noticed you left some items in your cart at Bafna Daily. Would you like to complete your order?`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="px-8 py-4 bg-green-500 text-white rounded-[20px] font-black text-xs uppercase tracking-widest shadow-xl shadow-green-200 hover:shadow-green-300 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <MessageCircle size={18} /> Recover via WhatsApp
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-lg shadow-slate-200/40 flex items-start gap-6">
         <div className="p-4 bg-primary/10 rounded-2xl text-primary shadow-inner">
