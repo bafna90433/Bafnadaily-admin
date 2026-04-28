@@ -334,6 +334,42 @@ const StaffReportsPage: React.FC = () => {
     }
   }
 
+  const handleDownloadZip = async (folderId: string, folderName: string) => {
+    try {
+      toast.loading(`Preparing ZIP for ${folderName}...`)
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken')
+      const response = await fetch(`${api.defaults.baseURL}/staff-reports/folders/${folderId}/download-zip`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      
+      if (!response.ok) {
+        toast.dismiss()
+        if (response.status === 404) {
+           toast.error('No reports found in this folder')
+        } else {
+           toast.error('Failed to download ZIP')
+        }
+        return
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `${folderName}_reports.zip`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      toast.dismiss()
+      toast.success('Downloaded ZIP successfully')
+    } catch (err) {
+      toast.dismiss()
+      toast.error('Download failed')
+    }
+  }
+
   const filteredReports = reports.filter(r => 
     r.staffName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.productCode?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -402,6 +438,14 @@ const StaffReportsPage: React.FC = () => {
           >
             <FolderPlus size={18} className="text-green-500" />
             New Folder
+          </button>
+          <button 
+            onClick={() => handleDownloadZip(currentFolderId || 'root', path[path.length - 1].name)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold shadow-sm"
+            title="Download this folder as ZIP"
+          >
+            <FileDown size={18} className="text-blue-500" />
+            ZIP
           </button>
           <button 
             onClick={handleOpenChat}
@@ -496,6 +540,13 @@ const StaffReportsPage: React.FC = () => {
                                         title="Delete folder"
                                     >
                                         <Trash2 size={13} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleDownloadZip(folder._id, folder.name); }}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all"
+                                        title="Download ZIP"
+                                    >
+                                        <FileDown size={13} />
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); toggleSelect(folder._id, true); }}
