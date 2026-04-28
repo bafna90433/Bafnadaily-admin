@@ -28,7 +28,7 @@ const CategoriesPage: React.FC = () => {
 
   const fetchCats = () => {
     setLoading(true)
-    api.get('/categories/all').then(r => setCategories(r.data.categories)).finally(() => setLoading(false))
+    api.get('/categories/all?admin=true').then(r => setCategories(r.data.categories)).finally(() => setLoading(false))
   }
   useEffect(() => { fetchCats() }, [])
 

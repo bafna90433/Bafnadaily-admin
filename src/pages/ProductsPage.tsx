@@ -32,7 +32,10 @@ const ProductsPage: React.FC = () => {
     } catch {} finally { setLoading(false) }
   }, [page, debouncedSearch])
 
-  useEffect(() => { fetchProducts() }, [fetchProducts])
+  useEffect(() => {
+    fetchProducts()
+    api.get('/categories/all?admin=true').then(r => setCategories(r.data.categories)).catch(() => {})
+  }, [fetchProducts])
 
   const del = async (id: string, name: string) => {
     if (!confirm(`Delete "${name}"?`)) return
