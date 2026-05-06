@@ -1,5 +1,24 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Eye, ChevronDown, Truck, X, FileText } from 'lucide-react'
+
+const exportExcel = (order: any) => {
+  const rows: any[][] = [['#', 'SKU', 'Product', 'Variant', 'Qty', 'Rate (₹)', 'Amount (₹)']]
+  ;(order.items || []).forEach((it: any, i: number) => {
+    rows.push([i + 1, it.sku || '', it.name, it.variant || '', it.quantity, it.price, it.price * it.quantity])
+  })
+  rows.push(['', '', '', '', '', '', ''])
+  rows.push(['', '', '', '', '', 'Subtotal', order.subtotal || 0])
+  rows.push(['', '', '', '', '', 'Shipping', order.shippingCharge || 0])
+  if ((order.discount || 0) > 0) rows.push(['', '', '', '', '', 'Discount', -(order.discount)])
+  rows.push(['', '', '', '', '', 'Grand Total', order.total || 0])
+  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `Order_${order.orderNumber}.csv`
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -16,6 +35,7 @@ const printInvoice = (order: any, settings: any) => {
   const itemRows = (order.items || []).map((it: any, i: number) => `
     <tr>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:#64748b">${i+1}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#64748b;font-size:12px;white-space:nowrap">${it.sku || '—'}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9">
         <span style="font-weight:600;color:#1e293b">${it.name}</span>
         ${it.variant ? `<br/><span style="font-size:11px;color:#94a3b8">${it.variant}</span>` : ''}
@@ -50,8 +70,9 @@ const printInvoice = (order: any, settings: any) => {
     thead tr{background:linear-gradient(135deg,#e91e63,#c2185b)}
     th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#fff}
     th:nth-child(1){text-align:center;width:36px}
-    th:nth-child(3){text-align:center}
-    th:nth-child(4),th:nth-child(5){text-align:right}
+    th:nth-child(2){width:90px}
+    th:nth-child(4){text-align:center}
+    th:nth-child(5),th:nth-child(6){text-align:right}
     .sum{margin-left:auto;width:260px;margin-top:4px}
     .sr{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#475569;border-bottom:1px solid #f1f5f9}
     .st{display:flex;justify-content:space-between;padding:10px 0 0;font-size:16px;font-weight:800;border-top:2px solid #1e293b;margin-top:4px}
@@ -59,6 +80,7 @@ const printInvoice = (order: any, settings: any) => {
     .foot{text-align:center;margin-top:28px;padding-top:18px;border-top:1px solid #f1f5f9;font-size:11px;color:#94a3b8}
     .no-print{text-align:center;margin-top:20px}
     .pbtn{padding:11px 28px;background:#e91e63;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px}
+    .ebtn{padding:11px 22px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px}
     .cbtn{padding:11px 22px;background:#64748b;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
     @media print{body{padding:16px}.no-print{display:none}}
   </style>
@@ -66,7 +88,7 @@ const printInvoice = (order: any, settings: any) => {
   <div class="head">
     <div class="brand">
       ${logo ? `<img src="${logo}" alt="${siteName}"/>` : `<div class="logo-box">${siteName[0]}</div>`}
-      <div><div class="brand-name">${siteName}</div><div class="brand-sub">Tax Invoice / Proforma Invoice</div></div>
+      <div><div class="brand-sub" style="margin-top:4px">Tax Invoice / Proforma Invoice</div></div>
     </div>
     <div class="inv-right">
       <h1>INVOICE</h1>
@@ -100,7 +122,7 @@ const printInvoice = (order: any, settings: any) => {
   ${order.trackingNumber ? `<div class="track">🚚 <strong>Shipped via ${order.courierName||'Courier'}</strong> &nbsp;·&nbsp; Tracking: <strong>${order.trackingNumber}</strong></div>` : ''}
 
   <table>
-    <thead><tr><th>#</th><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+    <thead><tr><th>#</th><th>SKU</th><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
     <tbody>${itemRows}</tbody>
   </table>
 
@@ -118,8 +140,25 @@ const printInvoice = (order: any, settings: any) => {
   </div>
   <div class="no-print">
     <button class="pbtn" onclick="window.print()">🖨️ Print / Save PDF</button>
+    <button class="ebtn" onclick="downloadExcel()">📊 Download Excel</button>
     <button class="cbtn" onclick="window.close()">Close</button>
   </div>
+  <script>
+  function downloadExcel() {
+    const rows = [['#','SKU','Product','Variant','Qty','Rate','Amount']];
+    ${JSON.stringify((order.items||[]).map((it: any,i: number) => [i+1, it.sku||'', it.name, it.variant||'', it.quantity, it.price, it.price*it.quantity]))}.forEach(r => rows.push(r));
+    rows.push(['','','','','','Subtotal', ${order.subtotal||0}]);
+    rows.push(['','','','','','Shipping', ${order.shippingCharge||0}]);
+    ${(order.discount||0)>0 ? `rows.push(['','','','','','Discount', -${order.discount}]);` : ''}
+    rows.push(['','','','','','Grand Total', ${order.total||0}]);
+    const csv = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\\n');
+    const blob = new Blob(['\\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'Invoice_${order.orderNumber}.csv';
+    a.click();
+  }
+  </script>
   </body></html>`)
   win.document.close()
 }
@@ -179,6 +218,15 @@ const OrdersPage: React.FC = () => {
       fetchOrders()
       if (selected?._id === orderId) setSelected((s:any) => s ? {...s, orderStatus: status} : null)
     } catch { toast.error('Update failed') } finally { setUpdating(null) }
+  }
+
+  const markPaymentPaid = async (orderId: string) => {
+    try {
+      await api.put(`/orders/${orderId}/payment-status`, { paymentStatus: 'paid' })
+      toast.success('Payment marked as paid')
+      fetchOrders()
+      if (selected?._id === orderId) setSelected((s:any) => s ? {...s, paymentStatus: 'paid'} : null)
+    } catch { toast.error('Update failed') }
   }
 
   const openShipModal = (order: any) => {
@@ -252,7 +300,11 @@ const OrdersPage: React.FC = () => {
                   <td className="td"><p className="font-medium text-sm">{o.user?.name||'—'}</p><p className="text-xs text-gray-400">{o.user?.phone}</p></td>
                   <td className="td text-gray-600">{o.items?.length||0} item(s)</td>
                   <td className="td font-bold">₹{o.total}</td>
-                  <td className="td"><span className={`badge ${o.paymentMethod==='cod'?'bg-orange-100 text-orange-700':'bg-green-100 text-green-700'} uppercase`}>{o.paymentMethod}</span></td>
+                  <td className="td">
+                    <span className={`badge ${o.paymentMethod==='cod'?'bg-orange-100 text-orange-700':o.paymentMethod==='upi'?'bg-blue-100 text-blue-700':'bg-purple-100 text-purple-700'} uppercase`}>{o.paymentMethod}</span>
+                    {o.paymentStatus==='pending' && o.paymentMethod!=='cod' && <span className="ml-1 badge bg-red-100 text-red-600 text-xs">Unpaid</span>}
+                    {o.paymentStatus==='paid' && o.paymentMethod!=='cod' && <span className="ml-1 badge bg-green-100 text-green-700 text-xs">Paid ✓</span>}
+                  </td>
                   <td className="td">
                     <div className="relative inline-block">
                       <select value={displayStatus(o.orderStatus)} onChange={e => updateStatus(o._id, e.target.value)} disabled={updating===o._id||o.orderStatus==='cancelled'}
@@ -268,9 +320,12 @@ const OrdersPage: React.FC = () => {
                   </td>
                   <td className="td text-gray-400 text-xs">{new Date(o.createdAt).toLocaleDateString('en-IN')}</td>
                   <td className="td">
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
                       <button onClick={() => setSelected(o)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="View"><Eye size={15}/></button>
                       <button onClick={() => openShipModal(o)} className="p-1.5 text-orange-500 hover:bg-orange-50 rounded-lg" title="Ship"><Truck size={15}/></button>
+                      {o.paymentStatus === 'pending' && o.paymentMethod !== 'cod' && (
+                        <button onClick={() => markPaymentPaid(o._id)} className="px-2 py-1 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg" title="Mark payment received">₹ Paid</button>
+                      )}
                     </div>
                   </td>
                   <td className="td">
@@ -294,18 +349,12 @@ const OrdersPage: React.FC = () => {
       {/* ── Order Detail Modal ── */}
       {selected && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white">
               <h2 className="font-bold text-lg">#{selected.orderNumber}</h2>
-              <div className="flex items-center gap-2">
-                <button onClick={() => printInvoice(selected, siteSettings)}
-                  className="flex items-center gap-1.5 bg-pink-500 hover:bg-pink-600 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors">
-                  <FileText size={13}/> Invoice
-                </button>
-                <button onClick={() => setSelected(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">✕</button>
-              </div>
+              <button onClick={() => setSelected(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">✕</button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-400 text-xs mb-1">Customer</p><p className="font-bold">{selected.user?.name}</p><p className="text-gray-500 text-xs">{selected.user?.phone}</p></div>
                 <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-400 text-xs mb-1">Payment</p><p className="font-bold text-lg">₹{selected.total}</p><p className="uppercase text-orange-500 text-xs font-bold">{selected.paymentMethod}</p></div>
@@ -333,6 +382,26 @@ const OrdersPage: React.FC = () => {
                 {selected.discount>0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>-₹{selected.discount}</span></div>}
                 <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Total</span><span>₹{selected.total}</span></div>
               </div>
+              {/* WhatsApp Status */}
+              <div className={`rounded-xl p-3 text-xs ${selected.wa?.orderConfirmedSent ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                <div className="flex items-center justify-between">
+                  <span>{selected.wa?.orderConfirmedSent ? '✅ WhatsApp confirmation sent' : '❌ WhatsApp confirmation not sent'}</span>
+                  {!selected.wa?.orderConfirmedSent && (
+                    <button onClick={async () => {
+                      try {
+                        await api.post(`/orders/${selected._id}/resend-wa`)
+                        toast.success('WhatsApp sent!')
+                        fetchOrders()
+                        setSelected((s:any) => s ? {...s, wa: {...s.wa, orderConfirmedSent: true, lastError: ''}} : null)
+                      } catch { toast.error('Failed to send') }
+                    }} className="ml-2 px-2 py-1 bg-green-600 text-white rounded-lg font-semibold">
+                      Retry
+                    </button>
+                  )}
+                </div>
+                {selected.wa?.lastError && <p className="mt-1 text-xs opacity-70 break-all">{selected.wa.lastError}</p>}
+              </div>
+
               <div><p className="font-bold text-sm mb-2">Update Status</p>
                 <div className="flex flex-wrap gap-2">
                   {STATUS_OPT.map(s => (
@@ -343,16 +412,21 @@ const OrdersPage: React.FC = () => {
                   ))}
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => printInvoice(selected, siteSettings)}
-                  className="flex-1 flex items-center justify-center gap-2 border-2 border-pink-400 text-pink-500 hover:bg-pink-500 hover:text-white py-2.5 rounded-xl font-semibold text-sm transition-colors">
-                  <FileText size={15}/> Print Invoice
-                </button>
-                <button onClick={() => openShipModal(selected)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl font-semibold text-sm transition-colors">
-                  <Truck size={16}/> Ship Order
-                </button>
-              </div>
+            </div>
+            {/* ── Sticky Footer Buttons ── */}
+            <div className="p-4 border-t bg-white flex gap-2 sticky bottom-0 rounded-b-2xl">
+              <button onClick={() => printInvoice(selected, siteSettings)}
+                className="flex-1 flex items-center justify-center gap-2 border-2 border-pink-400 text-pink-500 hover:bg-pink-500 hover:text-white py-2.5 rounded-xl font-semibold text-sm transition-colors">
+                <FileText size={15}/> Invoice
+              </button>
+              <button onClick={() => exportExcel(selected)}
+                className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-semibold text-sm transition-colors">
+                📊 Excel
+              </button>
+              <button onClick={() => openShipModal(selected)}
+                className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl font-semibold text-sm transition-colors">
+                <Truck size={16}/> Ship
+              </button>
             </div>
           </div>
         </div>

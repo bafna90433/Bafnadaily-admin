@@ -69,7 +69,9 @@ const UsersPage: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="td text-gray-600 font-medium">+91 {u.phone}</td>
+                  <td className="td text-gray-600 font-medium">
+                    {u.phone ? `+91 ${u.phone}` : (u.whatsapp ? `+91 ${u.whatsapp}` : '—')}
+                  </td>
                   <td className="td">
                     <div className="max-w-[150px]">
                       <p className="text-sm font-semibold truncate">{u.businessName || '—'}</p>
@@ -118,7 +120,9 @@ const UsersPage: React.FC = () => {
                     <h2 className="text-xl font-bold">{selectedUser.name || 'Customer'}</h2>
                     {isNewUser(selectedUser.createdAt) && <span className="bg-green-100 text-green-700 text-[10px] font-black px-2 py-0.5 rounded-lg">NEW USER</span>}
                   </div>
-                  <p className="text-gray-500 text-sm">{selectedUser.phone}</p>
+                  <p className="text-gray-500 text-sm">
+                    {selectedUser.phone ? `+91 ${selectedUser.phone}` : (selectedUser.whatsapp ? `+91 ${selectedUser.whatsapp} (WhatsApp)` : 'No contact info')}
+                  </p>
                 </div>
               </div>
               <button onClick={() => setSelectedUser(null)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20}/></button>

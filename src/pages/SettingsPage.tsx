@@ -291,7 +291,6 @@ const SettingsPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Free Shipping Above (₹)</label>{inp('freeShippingAbove','number','499')}</div>
                   <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Standard Charge (₹)</label>{inp('standardShippingCharge','number','49')}</div>
-                  <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Gift Wrap Charge (₹)</label>{inp('giftWrapCharge','number','29')}</div>
                 </div>
               </div>
 
