@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Search, Package, X, Check, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Package, X, Check, Loader2, Eye, EyeOff } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -24,18 +24,13 @@ const StockCell: React.FC<{ product: any; onSave: (id: string, stock: number) =>
   }
 
   const cancel = () => { setVal(String(product.stock)); setEditing(false) }
-
   const color = product.stock === 0 ? 'text-red-500' : product.stock < 10 ? 'text-orange-500' : 'text-green-600'
 
   if (saving) return <div className="flex items-center gap-1.5"><Loader2 size={13} className="animate-spin text-gray-400"/><span className="text-sm font-bold text-gray-400">{val}</span></div>
 
   if (editing) return (
     <div className="flex items-center gap-1">
-      <input
-        ref={inputRef}
-        type="number"
-        min="0"
-        value={val}
+      <input ref={inputRef} type="number" min="0" value={val}
         onChange={e => setVal(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel() }}
         onBlur={save}
@@ -49,11 +44,8 @@ const StockCell: React.FC<{ product: any; onSave: (id: string, stock: number) =>
   )
 
   return (
-    <button
-      onClick={start}
-      title="Click to edit stock"
-      className={`font-bold text-sm px-2.5 py-1 rounded-lg border border-transparent hover:border-gray-200 hover:bg-gray-50 transition-all cursor-pointer group ${color}`}
-    >
+    <button onClick={start} title="Click to edit stock"
+      className={`font-bold text-sm px-2.5 py-1 rounded-lg border border-transparent hover:border-gray-200 hover:bg-gray-50 transition-all cursor-pointer group ${color}`}>
       {product.stock}
       <span className="ml-1 text-gray-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
     </button>
@@ -77,17 +69,11 @@ const CategoryCell: React.FC<{ product: any; categories: any[]; onSave: (id: str
   return (
     <div className="relative">
       {saving && <Loader2 size={12} className="absolute right-6 top-1/2 -translate-y-1/2 animate-spin text-primary z-10"/>}
-      <select
-        value={currentCatId}
-        onChange={handleChange}
-        disabled={saving}
+      <select value={currentCatId} onChange={handleChange} disabled={saving}
         className="text-xs text-gray-600 bg-transparent border border-transparent hover:border-gray-200 hover:bg-gray-50 rounded-lg px-2 py-1.5 cursor-pointer transition-all focus:outline-none focus:border-primary focus:bg-white disabled:opacity-60 max-w-[160px] appearance-none pr-5"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239ca3af'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
-      >
+        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239ca3af'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}>
         <option value="">— No Category —</option>
-        {categories.map(c => (
-          <option key={c._id} value={c._id}>{c.name}</option>
-        ))}
+        {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
       </select>
     </div>
   )
@@ -103,6 +89,13 @@ const ProductsPage: React.FC = () => {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  // ── Multi-select state ──
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeletePwd, setBulkDeletePwd] = useState('')
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+  const [showBulkPwd, setShowBulkPwd] = useState(false)
 
   // Debounce search 400ms
   useEffect(() => {
@@ -125,7 +118,7 @@ const ProductsPage: React.FC = () => {
     api.get('/categories/all?admin=true').then(r => setCategories(r.data.categories)).catch(() => {})
   }, [fetchProducts])
 
-  // ── Inline Save: Stock ──────────────────────────────────────────────────────
+  // ── Inline saves ────────────────────────────────────────────────────────────
   const saveStock = async (id: string, stock: number) => {
     try {
       await api.put(`/products/${id}`, { stock })
@@ -134,7 +127,6 @@ const ProductsPage: React.FC = () => {
     } catch { toast.error('Stock update failed') }
   }
 
-  // ── Inline Save: Category ───────────────────────────────────────────────────
   const saveCategory = async (id: string, catId: string) => {
     try {
       await api.put(`/products/${id}`, { category: catId })
@@ -157,11 +149,46 @@ const ProductsPage: React.FC = () => {
     } catch { toast.error('Failed') }
   }
 
+  // ── Multi-select helpers ────────────────────────────────────────────────────
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === products.length) setSelectedIds(new Set())
+    else setSelectedIds(new Set(products.map((p: any) => p._id)))
+  }
+
+  const openBulkDelete = () => { setBulkDeletePwd(''); setShowBulkPwd(false); setBulkDeleteOpen(true) }
+
+  const handleBulkDelete = async () => {
+    setBulkDeleteLoading(true)
+    try {
+      const ids = Array.from(selectedIds)
+      const res = await api.delete('/products/bulk', { data: { password: bulkDeletePwd, ids } })
+      toast.success(res.data.message || `${ids.length} products deleted!`)
+      setBulkDeleteOpen(false)
+      setBulkDeletePwd('')
+      setSelectedIds(new Set())
+      fetchProducts()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Bulk delete failed')
+    } finally { setBulkDeleteLoading(false) }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="text-2xl font-bold">Products</h1><p className="text-gray-500 text-sm">{total} total</p></div>
-        <Link to="/products/add" className="btn-primary"><Plus size={17}/> Add Product</Link>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <button onClick={openBulkDelete}
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
+              <Trash2 size={15}/> Delete {selectedIds.size} Selected
+            </button>
+          )}
+          <Link to="/products/add" className="btn-primary"><Plus size={17}/> Add Product</Link>
+        </div>
       </div>
 
       <div className="card overflow-hidden">
@@ -184,10 +211,19 @@ const ProductsPage: React.FC = () => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
+                {/* Select all checkbox */}
+                <th className="th w-10">
+                  <input type="checkbox"
+                    checked={products.length > 0 && selectedIds.size === products.length}
+                    ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < products.length }}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 accent-red-500 cursor-pointer"
+                  />
+                </th>
                 <th className="th">Product</th>
-                <th className="th">Category <span className="text-primary text-xs font-normal">(click to change)</span></th>
+                <th className="th">Category <span className="text-primary text-xs font-normal">(click)</span></th>
                 <th className="th">Price</th>
-                <th className="th">Stock <span className="text-primary text-xs font-normal">(click to edit)</span></th>
+                <th className="th">Stock <span className="text-primary text-xs font-normal">(click)</span></th>
                 <th className="th">Badges</th>
                 <th className="th">Status</th>
                 <th className="th">Actions</th>
@@ -195,24 +231,31 @@ const ProductsPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? Array(8).fill(0).map((_,i) => (
-                <tr key={i}><td colSpan={7} className="p-3"><div className="h-10 skeleton rounded-lg"/></td></tr>
-              )) : products.map(p => (
-                <tr key={p._id} className="hover:bg-gray-50/80 transition-colors">
+                <tr key={i}><td colSpan={8} className="p-3"><div className="h-10 skeleton rounded-lg"/></td></tr>
+              )) : products.map((p: any) => (
+                <tr key={p._id} className={`hover:bg-gray-50/80 transition-colors ${selectedIds.has(p._id) ? 'bg-red-50' : ''}`}>
+                  {/* Checkbox */}
+                  <td className="td">
+                    <input type="checkbox"
+                      checked={selectedIds.has(p._id)}
+                      onChange={() => toggleSelect(p._id)}
+                      className="w-4 h-4 accent-red-500 cursor-pointer"
+                    />
+                  </td>
+
                   {/* Product name + image */}
                   <td className="td">
                     <div className="flex items-center gap-3">
                       <img src={p.images?.[0]?.url || `https://placehold.co/40x40/FCE4EC/E91E63?text=P`} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" alt=""/>
                       <div>
-                        <p className="font-semibold text-sm line-clamp-1 max-w-[200px]">{p.name}</p>
+                        <p className="font-semibold text-sm line-clamp-1 max-w-[180px]">{p.name}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{p.sku || '—'}</p>
                       </div>
                     </div>
                   </td>
 
-                  {/* Category — inline dropdown */}
-                  <td className="td">
-                    <CategoryCell product={p} categories={categories} onSave={saveCategory}/>
-                  </td>
+                  {/* Category inline */}
+                  <td className="td"><CategoryCell product={p} categories={categories} onSave={saveCategory}/></td>
 
                   {/* Price */}
                   <td className="td">
@@ -220,10 +263,8 @@ const ProductsPage: React.FC = () => {
                     {p.mrp > p.price && <span className="text-xs text-gray-400 ml-1.5 line-through">₹{p.mrp}</span>}
                   </td>
 
-                  {/* Stock — inline number input */}
-                  <td className="td">
-                    <StockCell product={p} onSave={saveStock}/>
-                  </td>
+                  {/* Stock inline */}
+                  <td className="td"><StockCell product={p} onSave={saveStock}/></td>
 
                   {/* Badges */}
                   <td className="td">
@@ -291,6 +332,67 @@ const ProductsPage: React.FC = () => {
           )
         })()}
       </div>
+
+      {/* ── Bulk Delete Modal ── */}
+      {bulkDeleteOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setBulkDeleteOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-5 border-b flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                  <Trash2 size={20} className="text-red-600"/>
+                </div>
+                <div>
+                  <h2 className="font-bold text-base text-red-700">Bulk Delete Products</h2>
+                  <p className="text-xs text-gray-400">{selectedIds.size} product(s) selected</p>
+                </div>
+              </div>
+              <button onClick={() => setBulkDeleteOpen(false)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg">
+                <X size={18}/>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+                <p className="font-bold mb-1">⚠️ This action is irreversible!</p>
+                <p><strong>{selectedIds.size} product(s)</strong> will be deactivated and hidden from store permanently.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Enter Admin Delete Password</label>
+                <div className="relative">
+                  <input
+                    type={showBulkPwd ? 'text' : 'password'}
+                    value={bulkDeletePwd}
+                    onChange={e => setBulkDeletePwd(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && bulkDeletePwd && handleBulkDelete()}
+                    className="input pr-10 border-red-200 focus:border-red-400"
+                    placeholder="Enter admin delete password…"
+                    autoFocus
+                  />
+                  <button type="button" onClick={() => setShowBulkPwd(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    {showBulkPwd ? <EyeOff size={16}/> : <Eye size={16}/>}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Set this password in Admin → Settings → Advanced</p>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setBulkDeleteOpen(false)}
+                  className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button onClick={handleBulkDelete} disabled={!bulkDeletePwd || bulkDeleteLoading}
+                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+                  {bulkDeleteLoading ? 'Deleting…' : <><Trash2 size={15}/> Delete {selectedIds.size} Products</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
