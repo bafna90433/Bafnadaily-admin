@@ -196,7 +196,13 @@ const ProductsPage: React.FC = () => {
         <div className="p-4 border-b border-gray-100 flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-            <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} className="input pl-9 pr-8 py-2" placeholder="Search products…"/>
+            <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)}
+              className="input pl-9 pr-8 py-2"
+              placeholder="Search products…"
+              autoComplete="off"
+              name="product-search-nofill"
+              type="search"
+            />
             {search && (
               <button onClick={() => { setSearch(''); searchRef.current?.focus() }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 rounded transition-colors">
                 <X size={14}/>
