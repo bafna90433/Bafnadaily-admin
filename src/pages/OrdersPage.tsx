@@ -441,13 +441,27 @@ const OrdersPage: React.FC = () => {
           </table>
           {!loading && orders.length === 0 && <div className="text-center py-16 text-gray-400">No orders found</div>}
         </div>
-        {total > 20 && (
-          <div className="p-4 border-t flex justify-center gap-2">
-            {Array(Math.min(Math.ceil(total/20),7)).fill(0).map((_,i) => (
-              <button key={i} onClick={() => setPage(i+1)} className={`w-9 h-9 rounded-lg text-sm font-medium ${page===i+1?'bg-primary text-white':'hover:bg-gray-100'}`}>{i+1}</button>
-            ))}
-          </div>
-        )}
+        {total > 20 && (() => {
+          const totalPages = Math.ceil(total / 20)
+          const win = 5
+          let start = Math.max(1, page - Math.floor(win / 2))
+          let end = Math.min(totalPages, start + win - 1)
+          if (end - start < win - 1) start = Math.max(1, end - win + 1)
+          return (
+            <div className="p-4 border-t flex justify-center items-center gap-1.5">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">← Prev</button>
+              {start > 1 && <><button onClick={() => setPage(1)} className="w-9 h-9 rounded-lg text-sm font-medium hover:bg-gray-100">1</button>{start > 2 && <span className="text-gray-400 px-1">…</span>}</>}
+              {Array.from({ length: end - start + 1 }, (_, i) => start + i).map(p => (
+                <button key={p} onClick={() => setPage(p)} className={`w-9 h-9 rounded-lg text-sm font-medium ${page === p ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}>{p}</button>
+              ))}
+              {end < totalPages && <>{end < totalPages - 1 && <span className="text-gray-400 px-1">…</span>}<button onClick={() => setPage(totalPages)} className="w-9 h-9 rounded-lg text-sm font-medium hover:bg-gray-100">{totalPages}</button></>}
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">Next →</button>
+              <span className="text-xs text-gray-400 ml-2">Page {page} of {totalPages} ({total} total)</span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* ── Order Detail Modal ── */}
