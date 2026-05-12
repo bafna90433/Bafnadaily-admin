@@ -191,6 +191,13 @@ const OrdersPage: React.FC = () => {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [showDeletePwd, setShowDeletePwd] = useState(false)
 
+  // ── Multi-Select State ──
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeletePwd, setBulkDeletePwd] = useState('')
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+  const [showBulkPwd, setShowBulkPwd] = useState(false)
+
   useEffect(() => { api.get('/settings').then(r => setSiteSettings(r.data.settings)).catch(() => {}) }, [])
 
   // Ship modal state
@@ -230,11 +237,50 @@ const OrdersPage: React.FC = () => {
       toast.success(`Order #${deleteModal.order.orderNumber} deleted!`)
       setDeleteModal({ open: false, order: null })
       setDeletePassword('')
+      setSelectedIds(prev => { const n = new Set(prev); n.delete(deleteModal.order._id); return n })
       fetchOrders()
       if (selected?._id === deleteModal.order._id) setSelected(null)
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Delete failed')
     } finally { setDeleteLoading(false) }
+  }
+
+  // ── Multi-Select Helpers ────────────────────────────────────────────────────
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const n = new Set(prev)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === orders.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(orders.map((o: any) => o._id)))
+    }
+  }
+
+  const openBulkDeleteModal = () => {
+    setBulkDeletePwd('')
+    setShowBulkPwd(false)
+    setBulkDeleteOpen(true)
+  }
+
+  const handleBulkDelete = async () => {
+    setBulkDeleteLoading(true)
+    try {
+      const ids = Array.from(selectedIds)
+      const res = await api.delete('/orders/bulk', { data: { password: bulkDeletePwd, ids } })
+      toast.success(res.data.message || `${ids.length} orders deleted!`)
+      setBulkDeleteOpen(false)
+      setBulkDeletePwd('')
+      setSelectedIds(new Set())
+      fetchOrders()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Bulk delete failed')
+    } finally { setBulkDeleteLoading(false) }
   }
 
   const updateStatus = async (orderId: string, status: string) => {
@@ -307,23 +353,52 @@ const OrdersPage: React.FC = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="text-2xl font-bold">Orders</h1><p className="text-gray-500 text-sm">{total} total orders</p></div>
-        <select value={filter} onChange={e => { setFilter(e.target.value); setPage(1) }} className="input w-44 py-2">
-          <option value="">All Orders</option>
-          {STATUS_OPT.map(s => <option key={s} value={s} className="capitalize">{displayLabel(s)}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={openBulkDeleteModal}
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+            >
+              <Trash2 size={15}/> Delete {selectedIds.size} Selected
+            </button>
+          )}
+          <select value={filter} onChange={e => { setFilter(e.target.value); setPage(1); setSelectedIds(new Set()) }} className="input w-44 py-2">
+            <option value="">All Orders</option>
+            {STATUS_OPT.map(s => <option key={s} value={s} className="capitalize">{displayLabel(s)}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
-              <tr><th className="th">Order</th><th className="th">Customer</th><th className="th">Items</th><th className="th">Total</th><th className="th">Payment</th><th className="th">Status</th><th className="th">Tracking</th><th className="th">Date</th><th className="th">Actions</th><th className="th">Invoice</th></tr>
+              <tr>
+                <th className="th w-10">
+                  <input
+                    type="checkbox"
+                    checked={orders.length > 0 && selectedIds.size === orders.length}
+                    ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < orders.length }}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 accent-red-500 cursor-pointer"
+                  />
+                </th>
+                <th className="th">Order</th><th className="th">Customer</th><th className="th">Items</th><th className="th">Total</th><th className="th">Payment</th><th className="th">Status</th><th className="th">Tracking</th><th className="th">Date</th><th className="th">Actions</th><th className="th">Invoice</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? Array(8).fill(0).map((_,i) => (
-                <tr key={i}><td colSpan={9} className="p-3"><div className="h-10 skeleton rounded-lg"/></td></tr>
-              )) : orders.map(o => (
-                <tr key={o._id} className="hover:bg-gray-50 transition-colors">
+                <tr key={i}><td colSpan={11} className="p-3"><div className="h-10 skeleton rounded-lg"/></td></tr>
+              )) : orders.map((o: any) => (
+                <tr key={o._id} className={`hover:bg-gray-50 transition-colors ${selectedIds.has(o._id) ? 'bg-red-50' : ''}`}>
+                  <td className="td">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(o._id)}
+                      onChange={() => toggleSelect(o._id)}
+                      className="w-4 h-4 accent-red-500 cursor-pointer"
+                    />
+                  </td>
                   <td className="td"><p className="font-bold text-sm">#{o.orderNumber}</p></td>
                   <td className="td"><p className="font-medium text-sm">{o.user?.name||'—'}</p><p className="text-xs text-gray-400">{o.user?.phone}</p></td>
                   <td className="td text-gray-600">{o.items?.length||0} item(s)</td>
@@ -603,6 +678,70 @@ const OrdersPage: React.FC = () => {
                   className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
                 >
                   {deleteLoading ? 'Deleting…' : <><Trash2 size={15}/> Delete Order</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk Delete Modal ── */}
+      {bulkDeleteOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setBulkDeleteOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-5 border-b flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                  <Trash2 size={20} className="text-red-600"/>
+                </div>
+                <div>
+                  <h2 className="font-bold text-base text-red-700">Bulk Delete Orders</h2>
+                  <p className="text-xs text-gray-400">{selectedIds.size} order(s) selected</p>
+                </div>
+              </div>
+              <button onClick={() => setBulkDeleteOpen(false)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={18}/></button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+                <p className="font-bold mb-1">⚠️ This action is irreversible!</p>
+                <p><strong>{selectedIds.size} order(s)</strong> will be permanently deleted. Stock will NOT be restored.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Enter Delete Password</label>
+                <div className="relative">
+                  <input
+                    type={showBulkPwd ? 'text' : 'password'}
+                    value={bulkDeletePwd}
+                    onChange={e => setBulkDeletePwd(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && bulkDeletePwd && handleBulkDelete()}
+                    className="input pr-10 border-red-200 focus:border-red-400"
+                    placeholder="Enter admin delete password…"
+                    autoFocus
+                  />
+                  <button type="button" onClick={() => setShowBulkPwd(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    {showBulkPwd ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Set this password in Admin → Settings → Advanced</p>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setBulkDeleteOpen(false)}
+                  className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={!bulkDeletePwd || bulkDeleteLoading}
+                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  {bulkDeleteLoading ? 'Deleting…' : <><Trash2 size={15}/> Delete {selectedIds.size} Orders</>}
                 </button>
               </div>
             </div>
