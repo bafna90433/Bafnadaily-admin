@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Settings, Upload, Globe, CreditCard, Truck, Users, Eye, EyeOff, ToggleLeft, ToggleRight, Save, RefreshCw, Loader2 } from 'lucide-react'
+import { Settings, Upload, Globe, CreditCard, Truck, Users, Eye, EyeOff, ToggleLeft, ToggleRight, Save, RefreshCw, Loader2, Lock } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -44,6 +44,7 @@ const SettingsPage: React.FC = () => {
   const [uploading, setUploading] = useState(false)
   const [showRzSecret, setShowRzSecret] = useState(false)
   const [showSRPwd, setShowSRPwd] = useState(false)
+  const [showDeletePwd, setShowDeletePwd] = useState(false)
   const [srAuthing, setSrAuthing] = useState(false)
 
   useEffect(() => {
@@ -469,6 +470,37 @@ const SettingsPage: React.FC = () => {
                       </a>{' '}→ Admin → Data Streams
                     </p>
                   </div>
+                )}
+              </div>
+
+              {/* ── Order Delete Password ── */}
+              <div className="p-5 rounded-2xl border-2 border-red-200 bg-red-50">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 rounded-xl bg-red-500 flex items-center justify-center flex-shrink-0">
+                    <Lock size={18} className="text-white"/>
+                  </div>
+                  <div>
+                    <p className="font-bold text-base text-red-700">🗑️ Order Delete Password</p>
+                    <p className="text-xs text-red-500 mt-0.5">Admin must enter this password to delete any order permanently</p>
+                  </div>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showDeletePwd ? 'text' : 'password'}
+                    value={settings.deletePassword || ''}
+                    onChange={e => set('deletePassword', e.target.value)}
+                    className="input pr-10 border-red-200 focus:border-red-400"
+                    placeholder="Set a strong delete password…"
+                  />
+                  <button type="button" onClick={() => setShowDeletePwd(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    {showDeletePwd ? <EyeOff size={16}/> : <Eye size={16}/>}
+                  </button>
+                </div>
+                {!settings.deletePassword && (
+                  <p className="text-xs text-red-600 mt-2 font-semibold">⚠️ No password set — order delete will be blocked until you set one.</p>
+                )}
+                {settings.deletePassword && (
+                  <p className="text-xs text-green-700 mt-2 font-semibold">✅ Password set. Admins must enter it to delete orders.</p>
                 )}
               </div>
             </div>

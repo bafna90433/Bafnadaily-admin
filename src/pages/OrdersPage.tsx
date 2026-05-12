@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Eye, ChevronDown, Truck, X, FileText } from 'lucide-react'
+import { Eye, ChevronDown, Truck, X, FileText, Trash2 } from 'lucide-react'
 
 const exportExcel = (order: any) => {
   const rows: any[][] = [['#', 'SKU', 'Product', 'Variant', 'Qty', 'Rate (₹)', 'Amount (₹)']]
@@ -185,6 +185,12 @@ const OrdersPage: React.FC = () => {
   const [updating, setUpdating] = useState<string|null>(null)
   const [siteSettings, setSiteSettings] = useState<any>(null)
 
+  // ── Delete Modal State ──
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; order: any | null }>({ open: false, order: null })
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [showDeletePwd, setShowDeletePwd] = useState(false)
+
   useEffect(() => { api.get('/settings').then(r => setSiteSettings(r.data.settings)).catch(() => {}) }, [])
 
   // Ship modal state
@@ -208,6 +214,28 @@ const OrdersPage: React.FC = () => {
   }, [filter, page])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
+
+  // ── Delete Order ──────────────────────────────────────────────────────────
+  const openDeleteModal = (order: any) => {
+    setDeleteModal({ open: true, order })
+    setDeletePassword('')
+    setShowDeletePwd(false)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteModal.order) return
+    setDeleteLoading(true)
+    try {
+      await api.delete(`/orders/${deleteModal.order._id}`, { data: { password: deletePassword } })
+      toast.success(`Order #${deleteModal.order.orderNumber} deleted!`)
+      setDeleteModal({ open: false, order: null })
+      setDeletePassword('')
+      fetchOrders()
+      if (selected?._id === deleteModal.order._id) setSelected(null)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Delete failed')
+    } finally { setDeleteLoading(false) }
+  }
 
   const updateStatus = async (orderId: string, status: string) => {
     if (status === 'shipped') { openShipModal(orders.find(o => o._id === orderId)); return }
@@ -326,6 +354,7 @@ const OrdersPage: React.FC = () => {
                       {o.paymentStatus === 'pending' && o.paymentMethod !== 'cod' && (
                         <button onClick={() => markPaymentPaid(o._id)} className="px-2 py-1 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg" title="Mark payment received">₹ Paid</button>
                       )}
+                      <button onClick={() => openDeleteModal(o)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete Order"><Trash2 size={15}/></button>
                     </div>
                   </td>
                   <td className="td">
@@ -512,6 +541,70 @@ const OrdersPage: React.FC = () => {
                 </button>
               </div>
               <p className="text-xs text-gray-400 text-center">WhatsApp tracking message customer ko automatically jayega</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Order Modal ── */}
+      {deleteModal.open && deleteModal.order && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setDeleteModal({ open: false, order: null })}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-5 border-b flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                  <Trash2 size={20} className="text-red-600"/>
+                </div>
+                <div>
+                  <h2 className="font-bold text-base text-red-700">Delete Order</h2>
+                  <p className="text-xs text-gray-400">#{deleteModal.order.orderNumber}</p>
+                </div>
+              </div>
+              <button onClick={() => setDeleteModal({ open: false, order: null })} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={18}/></button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+                <p className="font-bold mb-1">⚠️ This action is irreversible!</p>
+                <p>Order <strong>#{deleteModal.order.orderNumber}</strong> will be permanently deleted. Stock will NOT be restored.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Enter Delete Password</label>
+                <div className="relative">
+                  <input
+                    type={showDeletePwd ? 'text' : 'password'}
+                    value={deletePassword}
+                    onChange={e => setDeletePassword(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && deletePassword && handleDelete()}
+                    className="input pr-10 border-red-200 focus:border-red-400"
+                    placeholder="Enter admin delete password…"
+                    autoFocus
+                  />
+                  <button type="button" onClick={() => setShowDeletePwd(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    {showDeletePwd ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Set this password in Admin → Settings → Advanced</p>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setDeleteModal({ open: false, order: null })}
+                  className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={!deletePassword || deleteLoading}
+                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  {deleteLoading ? 'Deleting…' : <><Trash2 size={15}/> Delete Order</>}
+                </button>
+              </div>
             </div>
           </div>
         </div>
