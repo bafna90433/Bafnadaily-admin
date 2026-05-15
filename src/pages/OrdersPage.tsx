@@ -2,7 +2,17 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Eye, ChevronDown, Truck, X, FileText, Trash2 } from 'lucide-react'
 
 const exportExcel = (order: any) => {
-  const rows: any[][] = [['#', 'SKU', 'Product', 'Variant', 'Qty', 'MRP (₹)', 'Rate (₹)', 'Amount (₹)']]
+  const orderDt = new Date(order.createdAt)
+  const orderDate = orderDt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+  const orderTime = orderDt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+  const customerName = order.user?.name || order.shippingAddress?.name || '—'
+  const rows: any[][] = [
+    ['Order Number', order.orderNumber, '', '', '', '', '', ''],
+    ['Customer', customerName, '', '', '', '', '', ''],
+    ['Order Date & Time', `${orderDate} ${orderTime}`, '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', ''],
+    ['#', 'SKU', 'Product', 'Variant', 'Qty', 'MRP (₹)', 'Rate (₹)', 'Amount (₹)'],
+  ]
   ;(order.items || []).forEach((it: any, i: number) => {
     rows.push([i + 1, it.sku || '', it.name, it.variant || '', it.quantity, it.mrp || it.price, it.price, it.price * it.quantity])
   })
