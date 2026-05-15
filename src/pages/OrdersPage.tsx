@@ -6,11 +6,11 @@ const exportExcel = (order: any) => {
   ;(order.items || []).forEach((it: any, i: number) => {
     rows.push([i + 1, it.sku || '', it.name, it.variant || '', it.quantity, it.mrp || it.price, it.price, it.price * it.quantity])
   })
-  rows.push(['', '', '', '', '', '', ''])
-  rows.push(['', '', '', '', '', 'Subtotal', order.subtotal || 0])
-  rows.push(['', '', '', '', '', 'Shipping', order.shippingCharge || 0])
-  if ((order.discount || 0) > 0) rows.push(['', '', '', '', '', 'Discount', -(order.discount)])
-  rows.push(['', '', '', '', '', 'Grand Total', order.total || 0])
+  rows.push(['', '', '', '', '', '', '', ''])
+  rows.push(['', '', '', '', '', '', 'Subtotal', order.subtotal || 0])
+  rows.push(['', '', '', '', '', '', 'Shipping', order.shippingCharge || 0])
+  if ((order.discount || 0) > 0) rows.push(['', '', '', '', '', '', 'Discount', -(order.discount)])
+  rows.push(['', '', '', '', '', '', 'Grand Total', order.total || 0])
   const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n')
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
   const a = document.createElement('a')
@@ -148,10 +148,10 @@ const printInvoice = (order: any, settings: any) => {
   function downloadExcel() {
     const rows = [['#','SKU','Product','Variant','Qty','MRP','Rate','Amount']];
     ${JSON.stringify((order.items||[]).map((it: any,i: number) => [i+1, it.sku||'', it.name, it.variant||'', it.quantity, it.mrp||it.price, it.price, it.price*it.quantity]))}.forEach(r => rows.push(r));
-    rows.push(['','','','','','Subtotal', ${order.subtotal||0}]);
-    rows.push(['','','','','','Shipping', ${order.shippingCharge||0}]);
-    ${(order.discount||0)>0 ? `rows.push(['','','','','','Discount', -${order.discount}]);` : ''}
-    rows.push(['','','','','','Grand Total', ${order.total||0}]);
+    rows.push(['','','','','','','Subtotal', ${order.subtotal||0}]);
+    rows.push(['','','','','','','Shipping', ${order.shippingCharge||0}]);
+    ${(order.discount||0)>0 ? `rows.push(['','','','','','','Discount', -${order.discount}]);` : ''}
+    rows.push(['','','','','','','Grand Total', ${order.total||0}]);
     const csv = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\\n');
     const blob = new Blob(['\\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
     const a = document.createElement('a');
