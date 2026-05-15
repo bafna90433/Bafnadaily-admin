@@ -2,9 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Eye, ChevronDown, Truck, X, FileText, Trash2 } from 'lucide-react'
 
 const exportExcel = (order: any) => {
-  const rows: any[][] = [['#', 'SKU', 'Product', 'Variant', 'Qty', 'Rate (₹)', 'Amount (₹)']]
+  const rows: any[][] = [['#', 'SKU', 'Product', 'Variant', 'Qty', 'MRP (₹)', 'Rate (₹)', 'Amount (₹)']]
   ;(order.items || []).forEach((it: any, i: number) => {
-    rows.push([i + 1, it.sku || '', it.name, it.variant || '', it.quantity, it.price, it.price * it.quantity])
+    rows.push([i + 1, it.sku || '', it.name, it.variant || '', it.quantity, it.mrp || it.price, it.price, it.price * it.quantity])
   })
   rows.push(['', '', '', '', '', '', ''])
   rows.push(['', '', '', '', '', 'Subtotal', order.subtotal || 0])
@@ -41,6 +41,7 @@ const printInvoice = (order: any, settings: any) => {
         ${it.variant ? `<br/><span style="font-size:11px;color:#94a3b8">${it.variant}</span>` : ''}
       </td>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${it.quantity}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:#94a3b8;text-decoration:${(it.mrp && it.mrp > it.price) ? 'line-through' : 'none'}">₹${Number(it.mrp || it.price).toLocaleString('en-IN')}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:right">₹${Number(it.price).toLocaleString('en-IN')}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700">₹${(it.price*it.quantity).toLocaleString('en-IN')}</td>
     </tr>`).join('')
@@ -122,7 +123,7 @@ const printInvoice = (order: any, settings: any) => {
   ${order.trackingNumber ? `<div class="track">🚚 <strong>Shipped via ${order.courierName||'Courier'}</strong> &nbsp;·&nbsp; Tracking: <strong>${order.trackingNumber}</strong></div>` : ''}
 
   <table>
-    <thead><tr><th>#</th><th>SKU</th><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+    <thead><tr><th>#</th><th>SKU</th><th>Product</th><th>Qty</th><th>MRP</th><th>Rate</th><th>Amount</th></tr></thead>
     <tbody>${itemRows}</tbody>
   </table>
 
@@ -145,8 +146,8 @@ const printInvoice = (order: any, settings: any) => {
   </div>
   <script>
   function downloadExcel() {
-    const rows = [['#','SKU','Product','Variant','Qty','Rate','Amount']];
-    ${JSON.stringify((order.items||[]).map((it: any,i: number) => [i+1, it.sku||'', it.name, it.variant||'', it.quantity, it.price, it.price*it.quantity]))}.forEach(r => rows.push(r));
+    const rows = [['#','SKU','Product','Variant','Qty','MRP','Rate','Amount']];
+    ${JSON.stringify((order.items||[]).map((it: any,i: number) => [i+1, it.sku||'', it.name, it.variant||'', it.quantity, it.mrp||it.price, it.price, it.price*it.quantity]))}.forEach(r => rows.push(r));
     rows.push(['','','','','','Subtotal', ${order.subtotal||0}]);
     rows.push(['','','','','','Shipping', ${order.shippingCharge||0}]);
     ${(order.discount||0)>0 ? `rows.push(['','','','','','Discount', -${order.discount}]);` : ''}
