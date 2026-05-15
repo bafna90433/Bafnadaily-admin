@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Search, Package, X, Check, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Package, X, Check, Loader2, Eye, EyeOff, Copy, CheckCheck, ExternalLink } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
+
+const FEED_URL = 'https://bafnadaily-api.onrender.com/api/feed/facebook'
 
 // ── Inline Stock Cell ─────────────────────────────────────────────────────────
 const StockCell: React.FC<{ product: any; onSave: (id: string, stock: number) => Promise<void> }> = ({ product, onSave }) => {
@@ -176,6 +178,19 @@ const ProductsPage: React.FC = () => {
     } finally { setBulkDeleteLoading(false) }
   }
 
+  const [feedCopied, setFeedCopied] = useState(false)
+
+  const copyFeedUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(FEED_URL)
+      setFeedCopied(true)
+      toast.success('Feed URL copied! Paste it in Facebook Commerce Manager → Catalogue → Add Products → Use a URL')
+      setTimeout(() => setFeedCopied(false), 3000)
+    } catch {
+      toast.error('Could not copy. URL: ' + FEED_URL)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -187,8 +202,41 @@ const ProductsPage: React.FC = () => {
               <Trash2 size={15}/> Delete {selectedIds.size} Selected
             </button>
           )}
+          {/* ── Facebook Feed URL Button ── */}
+          <button
+            id="copy-facebook-feed-url"
+            onClick={copyFeedUrl}
+            title={`Facebook Data Feed URL:\n${FEED_URL}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all duration-200 ${
+              feedCopied
+                ? 'bg-green-500 text-white border-green-500'
+                : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+            }`}>
+            {feedCopied ? <><CheckCheck size={15}/> Copied!</> : <><Copy size={15}/> Copy Feed URL</>}
+          </button>
+          <a
+            href={FEED_URL}
+            target="_blank"
+            rel="noreferrer"
+            title="Preview live CSV feed"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all">
+            <ExternalLink size={14}/> Preview Feed
+          </a>
           <Link to="/products/add" className="btn-primary"><Plus size={17}/> Add Product</Link>
         </div>
+      </div>
+
+      {/* ── Facebook Feed Info Banner ── */}
+      <div className="mb-4 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm">
+        <span className="text-blue-600 text-lg mt-0.5">📘</span>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-blue-800 mb-0.5">Facebook Commerce Manager — Data Feed URL</p>
+          <p className="text-blue-600 text-xs font-mono truncate">{FEED_URL}</p>
+          <p className="text-blue-500 text-xs mt-1">Paste this URL in Facebook → Commerce Manager → Catalogue → Add Products → Use a URL or Google Sheets</p>
+        </div>
+        <button onClick={copyFeedUrl} className="flex-shrink-0 flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+          {feedCopied ? <><CheckCheck size={12}/> Copied!</> : <><Copy size={12}/> Copy</>}
+        </button>
       </div>
 
       <div className="card overflow-hidden">
