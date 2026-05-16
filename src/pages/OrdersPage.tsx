@@ -219,6 +219,7 @@ const OrdersPage: React.FC = () => {
   const [manualTracking, setManualTracking] = useState('')
   const [manualCourier, setManualCourier] = useState('')
   const [boxes, setBoxes] = useState<Record<BoxSize, { qty: number; weight: number }>>({ A28:{qty:0,weight:0}, A06:{qty:0,weight:0}, A08:{qty:0,weight:0}, A31:{qty:0,weight:0}, A18:{qty:0,weight:0}, CVR:{qty:0,weight:0} })
+  const [cvrDims, setCvrDims] = useState({ l: '', b: '', h: '', wt: '' })
   const [shipErr, setShipErr] = useState('')
   const [shipping, setShipping] = useState(false)
 
@@ -322,6 +323,7 @@ const OrdersPage: React.FC = () => {
     setManualTracking(order.trackingNumber || '')
     setManualCourier(order.courierName || '')
     setBoxes({ A28:{qty:0,weight:0}, A06:{qty:0,weight:0}, A08:{qty:0,weight:0}, A31:{qty:0,weight:0}, A18:{qty:0,weight:0}, CVR:{qty:0,weight:0} })
+    setCvrDims({ l: '', b: '', h: '', wt: '' })
     setShipErr('')
     setShipOpen(true)
   }
@@ -342,7 +344,14 @@ const OrdersPage: React.FC = () => {
 
     if (shipProvider === 'delhivery') {
       if (totalBoxQty === 0) { setShipErr('Kam se kam 1 box add karo.'); return }
-      payload.packingDetails = BOX_SIZES.filter(k => boxes[k].qty > 0).map(k => ({ boxType: k, quantity: boxes[k].qty, totalWeight: boxes[k].weight }))
+      if (boxes['CVR'].qty > 0) {
+        if (!cvrDims.l || !cvrDims.b || !cvrDims.h) { setShipErr('Cover ke dimensions (L × B × H) daalo.'); return }
+        if (!cvrDims.wt) { setShipErr('Cover ka weight daalo.'); return }
+      }
+      payload.packingDetails = BOX_SIZES.filter(k => boxes[k].qty > 0).map(k => ({
+        boxType: k, quantity: boxes[k].qty, totalWeight: boxes[k].weight,
+        ...(k === 'CVR' ? { customDims: { l: Number(cvrDims.l), b: Number(cvrDims.b), h: Number(cvrDims.h) }, customWeightKg: Number(cvrDims.wt) / 1000 } : {})
+      }))
     } else {
       if (!manualTracking.trim()) { setShipErr('Tracking ID required.'); return }
       payload.trackingNumber = manualTracking.trim()
@@ -597,14 +606,49 @@ const OrdersPage: React.FC = () => {
                   <p className="text-sm font-semibold mb-2">📦 Packing Details</p>
                   <div className="space-y-2">
                     {BOX_SIZES.map(size => (
-                      <div key={size} className={`flex items-center gap-3 rounded-xl p-2.5 ${size==='CVR'?'bg-blue-50 border border-blue-100':'bg-gray-50'}`}>
-                        <span className={`text-sm font-bold w-16 ${size==='CVR'?'text-blue-600':'text-gray-700'}`}>{BOX_LABELS[size]}</span>
-                        <input type="number" min="0" placeholder="Qty" value={boxes[size].qty || ''}
-                          onChange={e => handleBoxQty(size, e.target.value)}
-                          className="input flex-1 py-1.5 text-sm"/>
-                        <span className="text-xs text-gray-400 w-16 text-right">
-                          {boxes[size].weight > 0 ? `${(boxes[size].weight*1000).toLocaleString()}g` : `${(BOX_WEIGHTS_KG[size]*1000).toFixed(0)}g/pc`}
-                        </span>
+                      <div key={size} className="space-y-1">
+                        <div className={`flex items-center gap-3 rounded-xl p-2.5 ${size==='CVR'?'bg-blue-50 border border-blue-100':'bg-gray-50'}`}>
+                          <span className={`text-sm font-bold w-16 ${size==='CVR'?'text-blue-600':'text-gray-700'}`}>{BOX_LABELS[size]}</span>
+                          <input type="number" min="0" placeholder="Qty" value={boxes[size].qty || ''}
+                            onChange={e => handleBoxQty(size, e.target.value)}
+                            className="input flex-1 py-1.5 text-sm"/>
+                          <span className="text-xs text-gray-400 w-16 text-right">
+                            {size === 'CVR'
+                              ? (cvrDims.wt ? `${cvrDims.wt}g/pc` : 'Custom')
+                              : (boxes[size].weight > 0 ? `${(boxes[size].weight*1000).toLocaleString()}g` : `${(BOX_WEIGHTS_KG[size]*1000).toFixed(0)}g/pc`)}
+                          </span>
+                        </div>
+                        {size === 'CVR' && boxes['CVR'].qty > 0 && (
+                          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-2">
+                            <p className="text-xs font-semibold text-blue-700 mb-1">✉️ Cover ka size aur weight daalo</p>
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <label className="text-[10px] text-gray-500 font-medium">Length (cm)</label>
+                                <input type="number" min="1" placeholder="L" value={cvrDims.l}
+                                  onChange={e => setCvrDims(p => ({...p, l: e.target.value}))}
+                                  className="input w-full py-1 text-sm mt-0.5"/>
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-[10px] text-gray-500 font-medium">Breadth (cm)</label>
+                                <input type="number" min="1" placeholder="B" value={cvrDims.b}
+                                  onChange={e => setCvrDims(p => ({...p, b: e.target.value}))}
+                                  className="input w-full py-1 text-sm mt-0.5"/>
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-[10px] text-gray-500 font-medium">Height (cm)</label>
+                                <input type="number" min="1" placeholder="H" value={cvrDims.h}
+                                  onChange={e => setCvrDims(p => ({...p, h: e.target.value}))}
+                                  className="input w-full py-1 text-sm mt-0.5"/>
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-[10px] text-gray-500 font-medium">Weight (grams)</label>
+                                <input type="number" min="1" placeholder="g" value={cvrDims.wt}
+                                  onChange={e => setCvrDims(p => ({...p, wt: e.target.value}))}
+                                  className="input w-full py-1 text-sm mt-0.5"/>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
