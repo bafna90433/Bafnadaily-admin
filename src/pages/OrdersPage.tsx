@@ -330,11 +330,14 @@ const OrdersPage: React.FC = () => {
 
   const handleBoxQty = (size: BoxSize, val: string) => {
     const qty = Math.max(0, Number(val) || 0)
-    setBoxes(prev => ({ ...prev, [size]: { qty, weight: qty * BOX_WEIGHTS_KG[size] } }))
+    // CVR: weight comes from cvrDims.wt, not BOX_WEIGHTS_KG
+    const weight = size === 'CVR' ? 0 : qty * BOX_WEIGHTS_KG[size]
+    setBoxes(prev => ({ ...prev, [size]: { qty, weight } }))
   }
 
   const totalBoxQty = BOX_SIZES.reduce((s, k) => s + boxes[k].qty, 0)
-  const totalBoxWeightKg = BOX_SIZES.reduce((s, k) => s + boxes[k].weight, 0)
+  const cvrWeightKg = (boxes['CVR'].qty * Number(cvrDims.wt || 0)) / 1000
+  const totalBoxWeightKg = BOX_SIZES.reduce((s, k) => k === 'CVR' ? s : s + boxes[k].weight, 0) + cvrWeightKg
 
   const submitShip = async () => {
     if (!shipOrder) return
