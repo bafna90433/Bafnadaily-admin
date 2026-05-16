@@ -182,8 +182,9 @@ const SC: Record<string,string> = { placed:'bg-blue-100 text-blue-700', confirme
 const displayStatus = (s: string) => (s === 'placed' || s === 'processing') ? 'confirmed' : s
 const displayLabel = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-const BOX_WEIGHTS_KG: Record<string, number> = { A28: 8.46, A06: 10.75, A08: 15.68, A31: 34.18, A18: 2.42 }
-const BOX_SIZES = ['A28','A06','A08','A31','A18'] as const
+const BOX_WEIGHTS_KG: Record<string, number> = { A28: 8.46, A06: 10.75, A08: 15.68, A31: 34.18, A18: 2.42, CVR: 0.20 }
+const BOX_LABELS: Record<string, string> = { A28: 'A28', A06: 'A06', A08: 'A08', A31: 'A31', A18: 'A18', CVR: '✉️ Cover' }
+const BOX_SIZES = ['A28','A06','A08','A31','A18','CVR'] as const
 type BoxSize = typeof BOX_SIZES[number]
 
 const OrdersPage: React.FC = () => {
@@ -217,7 +218,7 @@ const OrdersPage: React.FC = () => {
   const [shipProvider, setShipProvider] = useState<'delhivery'|'shiprocket'|'manual'>('delhivery')
   const [manualTracking, setManualTracking] = useState('')
   const [manualCourier, setManualCourier] = useState('')
-  const [boxes, setBoxes] = useState<Record<BoxSize, { qty: number; weight: number }>>({ A28:{qty:0,weight:0}, A06:{qty:0,weight:0}, A08:{qty:0,weight:0}, A31:{qty:0,weight:0}, A18:{qty:0,weight:0} })
+  const [boxes, setBoxes] = useState<Record<BoxSize, { qty: number; weight: number }>>({ A28:{qty:0,weight:0}, A06:{qty:0,weight:0}, A08:{qty:0,weight:0}, A31:{qty:0,weight:0}, A18:{qty:0,weight:0}, CVR:{qty:0,weight:0} })
   const [shipErr, setShipErr] = useState('')
   const [shipping, setShipping] = useState(false)
 
@@ -320,7 +321,7 @@ const OrdersPage: React.FC = () => {
     setShipProvider('delhivery')
     setManualTracking(order.trackingNumber || '')
     setManualCourier(order.courierName || '')
-    setBoxes({ A28:{qty:0,weight:0}, A06:{qty:0,weight:0}, A08:{qty:0,weight:0}, A31:{qty:0,weight:0}, A18:{qty:0,weight:0} })
+    setBoxes({ A28:{qty:0,weight:0}, A06:{qty:0,weight:0}, A08:{qty:0,weight:0}, A31:{qty:0,weight:0}, A18:{qty:0,weight:0}, CVR:{qty:0,weight:0} })
     setShipErr('')
     setShipOpen(true)
   }
@@ -596,13 +597,13 @@ const OrdersPage: React.FC = () => {
                   <p className="text-sm font-semibold mb-2">📦 Packing Details</p>
                   <div className="space-y-2">
                     {BOX_SIZES.map(size => (
-                      <div key={size} className="flex items-center gap-3 bg-gray-50 rounded-xl p-2.5">
-                        <span className="text-sm font-bold w-8 text-gray-700">{size}</span>
+                      <div key={size} className={`flex items-center gap-3 rounded-xl p-2.5 ${size==='CVR'?'bg-blue-50 border border-blue-100':'bg-gray-50'}`}>
+                        <span className={`text-sm font-bold w-16 ${size==='CVR'?'text-blue-600':'text-gray-700'}`}>{BOX_LABELS[size]}</span>
                         <input type="number" min="0" placeholder="Qty" value={boxes[size].qty || ''}
                           onChange={e => handleBoxQty(size, e.target.value)}
                           className="input flex-1 py-1.5 text-sm"/>
                         <span className="text-xs text-gray-400 w-16 text-right">
-                          {boxes[size].weight > 0 ? `${(boxes[size].weight*1000).toLocaleString()}g` : `${BOX_WEIGHTS_KG[size]}kg/box`}
+                          {boxes[size].weight > 0 ? `${(boxes[size].weight*1000).toLocaleString()}g` : `${(BOX_WEIGHTS_KG[size]*1000).toFixed(0)}g/pc`}
                         </span>
                       </div>
                     ))}
