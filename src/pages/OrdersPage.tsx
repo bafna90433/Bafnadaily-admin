@@ -618,7 +618,7 @@ const OrdersPage: React.FC = () => {
                               : (boxes[size].weight > 0 ? `${(boxes[size].weight*1000).toLocaleString()}g` : `${(BOX_WEIGHTS_KG[size]*1000).toFixed(0)}g/pc`)}
                           </span>
                         </div>
-                        {size === 'CVR' && boxes['CVR'].qty > 0 && (
+                        {size === 'CVR' && (
                           <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-2">
                             <p className="text-xs font-semibold text-blue-700 mb-1">✉️ Cover ka size aur weight daalo</p>
                             <div className="flex gap-2">
