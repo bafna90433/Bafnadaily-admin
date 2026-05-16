@@ -223,20 +223,13 @@ const OrdersPage: React.FC = () => {
   const [shipErr, setShipErr] = useState('')
   const [shipping, setShipping] = useState(false)
 
-  // Live tracking modal state
-  const [trackOpen, setTrackOpen] = useState(false)
-  const [trackData, setTrackData] = useState<any>(null)
-  const [trackLoading, setTrackLoading] = useState(false)
-  const [trackErr, setTrackErr] = useState('')
-
   const openTracking = (order: any) => {
     if (!order.trackingNumber) return
     const courier = (order.courierName || '').toLowerCase()
     const trackUrl = courier.includes('delhivery')
       ? `https://www.delhivery.com/track-v2/package/${order.trackingNumber}`
       : `https://www.google.com/search?q=${encodeURIComponent(order.trackingNumber + ' ' + order.courierName + ' tracking')}`
-    setTrackData({ trackUrl, waybill: order.trackingNumber })
-    setTrackOpen(true)
+    window.open(trackUrl, '_blank')
   }
 
   const fetchOrders = useCallback(async () => {
@@ -595,28 +588,7 @@ const OrdersPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Live Tracking Modal ── */}
-      {trackOpen && trackData?.trackUrl && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setTrackOpen(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-2xl flex flex-col" style={{height:'85vh'}} onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
-              <h2 className="font-bold text-base flex items-center gap-2">📍 Live Tracking — {trackData.waybill}</h2>
-              <div className="flex items-center gap-2">
-                <a href={trackData.trackUrl} target="_blank" rel="noreferrer"
-                  className="text-xs px-3 py-1.5 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600">
-                  🔗 New Tab
-                </a>
-                <button onClick={() => setTrackOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">✕</button>
-              </div>
-            </div>
-            <iframe
-              src={trackData.trackUrl}
-              className="flex-1 w-full rounded-b-2xl border-0"
-              title="Delhivery Tracking"
-            />
-          </div>
-        </div>
-      )}
+      {/* Live tracking: opens in new tab directly */}
 
       {/* ── Ship Modal ── */}
       {shipOpen && shipOrder && (
