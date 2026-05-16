@@ -229,20 +229,14 @@ const OrdersPage: React.FC = () => {
   const [trackLoading, setTrackLoading] = useState(false)
   const [trackErr, setTrackErr] = useState('')
 
-  const openTracking = async (order: any) => {
+  const openTracking = (order: any) => {
     if (!order.trackingNumber) return
+    const courier = (order.courierName || '').toLowerCase()
+    const trackUrl = courier.includes('delhivery')
+      ? `https://www.delhivery.com/track-v2/package/${order.trackingNumber}`
+      : `https://www.google.com/search?q=${encodeURIComponent(order.trackingNumber + ' ' + order.courierName + ' tracking')}`
+    setTrackData({ trackUrl, waybill: order.trackingNumber })
     setTrackOpen(true)
-    setTrackData(null)
-    setTrackErr('')
-    setTrackLoading(true)
-    try {
-      const res = await api.get(`/orders/${order._id}/tracking`)
-      setTrackData(res.data)
-    } catch (e: any) {
-      setTrackErr(e?.response?.data?.message || 'Tracking fetch failed')
-    } finally {
-      setTrackLoading(false)
-    }
   }
 
   const fetchOrders = useCallback(async () => {
@@ -602,59 +596,24 @@ const OrdersPage: React.FC = () => {
       )}
 
       {/* ── Live Tracking Modal ── */}
-      {trackOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setTrackOpen(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white">
-              <h2 className="font-bold text-lg flex items-center gap-2">📍 Live Tracking</h2>
-              <button onClick={() => setTrackOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">✕</button>
+      {trackOpen && trackData?.trackUrl && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setTrackOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-2xl flex flex-col" style={{height:'85vh'}} onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
+              <h2 className="font-bold text-base flex items-center gap-2">📍 Live Tracking — {trackData.waybill}</h2>
+              <div className="flex items-center gap-2">
+                <a href={trackData.trackUrl} target="_blank" rel="noreferrer"
+                  className="text-xs px-3 py-1.5 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600">
+                  🔗 New Tab
+                </a>
+                <button onClick={() => setTrackOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5">
-              {trackLoading && <div className="text-center py-10 text-gray-400">Tracking data fetch ho raha hai...</div>}
-              {trackErr && <div className="text-red-500 text-sm text-center py-6">{trackErr}</div>}
-              {trackData && !trackLoading && (
-                <div className="space-y-4">
-                  {/* Status */}
-                  <div className="bg-green-50 border border-green-100 rounded-xl p-4">
-                    <p className="text-xs text-gray-400 font-semibold uppercase mb-1">Current Status</p>
-                    <p className="text-lg font-black text-green-700">{trackData.status || 'In Transit'}</p>
-                    <p className="text-xs text-gray-500 mt-1">AWB: {trackData.waybill}</p>
-                    {trackData.expectedDelivery && <p className="text-xs text-blue-600 mt-1 font-semibold">Expected: {trackData.expectedDelivery}</p>}
-                    {trackData.origin && <p className="text-xs text-gray-400 mt-1">{trackData.origin} → {trackData.destination}</p>}
-                  </div>
-
-                  {/* Scan timeline */}
-                  {trackData.scans?.length > 0 && (
-                    <div>
-                      <p className="text-sm font-bold text-gray-700 mb-3">Tracking Timeline</p>
-                      <div className="space-y-0">
-                        {trackData.scans.map((s: any, i: number) => (
-                          <div key={i} className="flex gap-3">
-                            <div className="flex flex-col items-center">
-                              <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${i===0?'bg-green-500':'bg-gray-300'}`}/>
-                              {i < trackData.scans.length-1 && <div className="w-0.5 bg-gray-200 flex-1 my-1"/>}
-                            </div>
-                            <div className={`pb-4 flex-1 ${i===0?'':'opacity-70'}`}>
-                              <p className={`text-sm font-semibold ${i===0?'text-green-700':'text-gray-700'}`}>{s.status}</p>
-                              {s.location && <p className="text-xs text-gray-400 mt-0.5">📍 {s.location}</p>}
-                              {s.time && <p className="text-xs text-gray-400 mt-0.5">🕐 {new Date(s.time).toLocaleString('en-IN')}</p>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Open on Delhivery */}
-                  {trackData.trackUrl && (
-                    <a href={trackData.trackUrl} target="_blank" rel="noreferrer"
-                      className="block w-full text-center py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors">
-                      🔗 Delhivery Website pe Track karo
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
+            <iframe
+              src={trackData.trackUrl}
+              className="flex-1 w-full rounded-b-2xl border-0"
+              title="Delhivery Tracking"
+            />
           </div>
         </div>
       )}
