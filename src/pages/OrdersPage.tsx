@@ -633,7 +633,15 @@ const OrdersPage: React.FC = () => {
               <div className="bg-gray-50 rounded-xl p-3 text-sm">
                 <p className="font-semibold">{shipOrder.shippingAddress?.name}</p>
                 <p className="text-gray-500 text-xs">{shipOrder.shippingAddress?.city}, {shipOrder.shippingAddress?.state} – {shipOrder.shippingAddress?.pincode}</p>
-                <p className="text-orange-600 font-bold mt-1">₹{shipOrder.total} · {shipOrder.paymentMethod?.toUpperCase()}</p>
+                <p className="text-orange-600 font-bold mt-1">
+                  ₹{shipOrder.total} · {shipOrder.paymentMethod?.toUpperCase()}
+                  {shipOrder.paymentMethod === 'cod' && (
+                    <span className="ml-2 text-sm">
+                      · Collect: <span className="text-red-600">₹{Math.max(0, shipOrder.total - (shipOrder.advanceAmount || 0))}</span>
+                      {shipOrder.advanceAmount > 0 && <span className="text-green-600 text-xs ml-1">(Advance ₹{shipOrder.advanceAmount} paid)</span>}
+                    </span>
+                  )}
+                </p>
               </div>
 
               {/* Provider selector */}
