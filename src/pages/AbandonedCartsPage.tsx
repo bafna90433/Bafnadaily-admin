@@ -8,6 +8,7 @@ const AbandonedCartsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [selectedCart, setSelectedCart] = useState<any>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [sending, setSending] = useState<string | null>(null)
 
   const fetchCarts = async () => {
     setLoading(true)
@@ -32,6 +33,18 @@ const AbandonedCartsPage: React.FC = () => {
       toast.error('Delete failed')
     } finally {
       setDeleting(null)
+    }
+  }
+
+  const sendRecovery = async (id: string, name: string) => {
+    setSending(id)
+    try {
+      const res = await api.post(`/admin/abandoned-carts/${id}/send-recovery`)
+      toast.success(res.data.message || `Recovery message sent to ${name}!`)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to send recovery message')
+    } finally {
+      setSending(null)
     }
   }
 
@@ -157,14 +170,14 @@ const AbandonedCartsPage: React.FC = () => {
                             <Eye size={18} />
                           </button>
                           {cart.user?.phone && (
-                            <a 
-                              href={`https://wa.me/${cart.user.phone.replace(/\D/g, '')}?text=Hi ${cart.user.name}, we noticed you left some items in your cart at Bafna Daily. Would you like to complete your order?`} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="px-4 py-2 bg-green-500 text-white rounded-xl transition-all shadow-md shadow-green-200 hover:shadow-green-300 hover:scale-105 active:scale-95 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider"
+                            <button
+                              onClick={() => sendRecovery(cart._id, cart.user?.name || 'Customer')}
+                              disabled={sending === cart._id}
+                              className="px-4 py-2 bg-green-500 text-white rounded-xl transition-all shadow-md shadow-green-200 hover:shadow-green-300 hover:scale-105 active:scale-95 disabled:opacity-60 disabled:scale-100 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider"
                             >
-                              <MessageCircle size={14} /> Recovery
-                            </a>
+                              {sending === cart._id ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
+                              {sending === cart._id ? 'Sending…' : 'Recovery'}
+                            </button>
                           )}
                           <button 
                             onClick={() => deleteCart(cart._id)}
@@ -270,14 +283,14 @@ const AbandonedCartsPage: React.FC = () => {
                   Delete Cart
                 </button>
                 {selectedCart.user?.phone && (
-                  <a 
-                    href={`https://wa.me/${selectedCart.user.phone.replace(/\D/g, '')}?text=Hi ${selectedCart.user.name}, we noticed you left some items in your cart at Bafna Daily. Would you like to complete your order?`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="px-8 py-4 bg-green-500 text-white rounded-[20px] font-black text-xs uppercase tracking-widest shadow-xl shadow-green-200 hover:shadow-green-300 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                  <button
+                    onClick={() => sendRecovery(selectedCart._id, selectedCart.user?.name || 'Customer')}
+                    disabled={sending === selectedCart._id}
+                    className="px-8 py-4 bg-green-500 text-white rounded-[20px] font-black text-xs uppercase tracking-widest shadow-xl shadow-green-200 hover:shadow-green-300 hover:scale-105 active:scale-95 disabled:opacity-60 disabled:scale-100 transition-all flex items-center gap-2"
                   >
-                    <MessageCircle size={18} /> Recover via WhatsApp
-                  </a>
+                    {sending === selectedCart._id ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}
+                    {sending === selectedCart._id ? 'Sending…' : 'Recover via WhatsApp'}
+                  </button>
                 )}
               </div>
             </div>
