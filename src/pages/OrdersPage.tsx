@@ -10,6 +10,7 @@ const exportExcel = (order: any) => {
     ['Order Number', order.orderNumber, '', '', '', '', '', ''],
     ['Customer', customerName, '', '', '', '', '', ''],
     ['Order Date & Time', `${orderDate} ${orderTime}`, '', '', '', '', '', ''],
+    ...(order.gstin ? [['Customer GSTIN', order.gstin, '', '', '', '', '', '']] : []),
     ['', '', '', '', '', '', '', ''],
     ['#', 'SKU', 'Product', 'Variant', 'Qty', 'MRP (₹)', 'Rate (₹)', 'Amount (₹)'],
   ]
@@ -128,7 +129,7 @@ const printInvoice = (order: any, settings: any) => {
       <p>Order #: <strong>${order.orderNumber}</strong><br/>
       Date: ${orderDate}<br/>
       Payment: <strong style="color:${order.paymentMethod==='cod'?'#f59e0b':'#10b981'}">${(order.paymentMethod||'').toUpperCase()}</strong><br/>
-      Status: <strong>${statusLabel(order.orderStatus)}</strong></p>
+      Status: <strong>${statusLabel(order.orderStatus)}</strong>${order.gstin?`<br/>GSTIN: <strong style="color:#6366f1;font-family:monospace">${order.gstin}</strong>`:''}</p>
     </div>
   </div>
 
@@ -161,7 +162,7 @@ const printInvoice = (order: any, settings: any) => {
   </div>
   <script>
   function downloadExcel() {
-    const rows = [['#','SKU','Product','Variant','Qty','MRP','Rate','Amount']];
+    const rows = [${order.gstin?`['Customer GSTIN','${order.gstin}','','','','','',''],['','','','','','','',''],`:''}['#','SKU','Product','Variant','Qty','MRP','Rate','Amount']];
     ${JSON.stringify((order.items||[]).map((it: any,i: number) => [i+1, it.sku||'', it.name, it.variant||'', it.quantity, it.mrp||it.price, it.price, it.price*it.quantity]))}.forEach(r => rows.push(r));
     rows.push(['','','','','','','Subtotal', ${order.subtotal||0}]);
     rows.push(['','','','','','','Shipping', ${order.shippingCharge||0}]);
@@ -576,6 +577,7 @@ const OrdersPage: React.FC = () => {
                 <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Total</span><span>₹{selected.total}</span></div>
                 {selected.paymentMethod==='cod' && selected.advanceAmount>0 && <div className="flex justify-between text-green-600 text-sm"><span>Advance Paid</span><span>-₹{selected.advanceAmount}</span></div>}
                 {selected.paymentMethod==='cod' && <div className="flex justify-between font-bold text-red-600 text-sm"><span>To Collect (COD)</span><span>₹{Math.max(0,selected.total-(selected.advanceAmount||0))}</span></div>}
+                {selected.gstin && <div className="flex justify-between text-indigo-600 text-xs pt-1 border-t border-dashed"><span>🧾 GSTIN</span><span className="font-mono font-bold">{selected.gstin}</span></div>}
               </div>
               {/* WhatsApp Status */}
               <div className={`rounded-xl p-3 text-xs ${selected.wa?.orderConfirmedSent ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
