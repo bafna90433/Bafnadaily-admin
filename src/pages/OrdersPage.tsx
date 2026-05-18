@@ -196,6 +196,8 @@ const OrdersPage: React.FC = () => {
   const [selected, setSelected] = useState<any>(null)
   const [updating, setUpdating] = useState<string|null>(null)
   const [siteSettings, setSiteSettings] = useState<any>(null)
+  const [editingAdvance, setEditingAdvance] = useState<string|null>(null)
+  const [advanceInput, setAdvanceInput] = useState('')
 
   // ── Delete Modal State ──
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; order: any | null }>({ open: false, order: null })
@@ -314,6 +316,17 @@ const OrdersPage: React.FC = () => {
       fetchOrders()
       if (selected?._id === orderId) setSelected((s:any) => s ? {...s, orderStatus: status} : null)
     } catch { toast.error('Update failed') } finally { setUpdating(null) }
+  }
+
+  const saveAdvance = async (orderId: string) => {
+    const amt = Number(advanceInput)
+    if (isNaN(amt) || amt < 0) { toast.error('Valid amount daalo'); return }
+    try {
+      await api.put(`/orders/${orderId}/advance`, { advanceAmount: amt })
+      toast.success(`Advance ₹${amt} updated!`)
+      fetchOrders()
+      setEditingAdvance(null)
+    } catch { toast.error('Update failed') }
   }
 
   const markPaymentPaid = async (orderId: string) => {
@@ -440,8 +453,23 @@ const OrdersPage: React.FC = () => {
                     <span className={`badge ${o.paymentMethod==='cod'?'bg-orange-100 text-orange-700':o.paymentMethod==='upi'?'bg-blue-100 text-blue-700':'bg-purple-100 text-purple-700'} uppercase`}>{o.paymentMethod}</span>
                     {o.paymentStatus==='pending' && o.paymentMethod!=='cod' && <span className="ml-1 badge bg-red-100 text-red-600 text-xs">Unpaid</span>}
                     {o.paymentStatus==='paid' && o.paymentMethod!=='cod' && <span className="ml-1 badge bg-green-100 text-green-700 text-xs">Paid ✓</span>}
-                    {o.paymentMethod==='cod' && o.advanceAmount > 0 && <div className="mt-0.5 text-xs text-green-700 font-semibold">Advance ₹{o.advanceAmount} ✓</div>}
-                    {o.paymentMethod==='cod' && (!o.advanceAmount || o.advanceAmount === 0) && <div className="mt-0.5 text-xs text-red-500 font-semibold">No advance</div>}
+                    {o.paymentMethod==='cod' && (
+                      editingAdvance === o._id ? (
+                        <div className="mt-1 flex items-center gap-1">
+                          <input type="number" value={advanceInput} onChange={e => setAdvanceInput(e.target.value)} onKeyDown={e => { if(e.key==='Enter') saveAdvance(o._id); if(e.key==='Escape') setEditingAdvance(null) }} className="w-20 text-xs border border-gray-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-primary" autoFocus placeholder="₹" />
+                          <button onClick={() => saveAdvance(o._id)} className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded font-bold">✓</button>
+                          <button onClick={() => setEditingAdvance(null)} className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold">✕</button>
+                        </div>
+                      ) : (
+                        <div className="mt-0.5 flex items-center gap-1">
+                          {o.advanceAmount > 0
+                            ? <span className="text-xs text-green-700 font-semibold">Advance ₹{o.advanceAmount} ✓</span>
+                            : <span className="text-xs text-red-500 font-semibold">No advance</span>
+                          }
+                          <button onClick={() => { setEditingAdvance(o._id); setAdvanceInput(String(o.advanceAmount||0)) }} className="text-[9px] text-gray-400 hover:text-primary underline ml-0.5">edit</button>
+                        </div>
+                      )
+                    )}
                   </td>
                   <td className="td">
                     <div className="relative inline-block">
