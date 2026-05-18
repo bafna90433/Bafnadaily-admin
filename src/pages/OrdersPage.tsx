@@ -21,6 +21,8 @@ const exportExcel = (order: any) => {
   rows.push(['', '', '', '', '', '', 'Shipping', order.shippingCharge || 0])
   if ((order.discount || 0) > 0) rows.push(['', '', '', '', '', '', 'Discount', -(order.discount)])
   rows.push(['', '', '', '', '', '', 'Grand Total', order.total || 0])
+  if (order.paymentMethod === 'cod' && (order.advanceAmount || 0) > 0) rows.push(['', '', '', '', '', '', 'Advance Paid', -(order.advanceAmount)])
+  if (order.paymentMethod === 'cod') rows.push(['', '', '', '', '', '', 'To Collect (COD)', Math.max(0, (order.total || 0) - (order.advanceAmount || 0))])
   const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n')
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
   const a = document.createElement('a')
@@ -142,6 +144,8 @@ const printInvoice = (order: any, settings: any) => {
     <div class="sr"><span>Shipping</span><span>${(order.shippingCharge||0)===0?'<span style="color:#10b981;font-weight:600">FREE</span>':'₹'+order.shippingCharge}</span></div>
     ${(order.discount||0)>0?`<div class="sr" style="color:#10b981"><span>Discount</span><span>-₹${Number(order.discount).toLocaleString('en-IN')}</span></div>`:''}
     <div class="st"><span>Grand Total</span><span>₹${Number(order.total||0).toLocaleString('en-IN')}</span></div>
+    ${order.paymentMethod==='cod' && (order.advanceAmount||0)>0?`<div class="sr" style="color:#10b981"><span>Advance Paid</span><span>-₹${Number(order.advanceAmount).toLocaleString('en-IN')}</span></div>`:''}
+    ${order.paymentMethod==='cod'?`<div class="st" style="color:#ef4444"><span>To Collect (COD)</span><span>₹${Math.max(0,Number(order.total||0)-Number(order.advanceAmount||0)).toLocaleString('en-IN')}</span></div>`:''}
   </div>
 
   <div class="foot">
@@ -162,6 +166,8 @@ const printInvoice = (order: any, settings: any) => {
     rows.push(['','','','','','','Shipping', ${order.shippingCharge||0}]);
     ${(order.discount||0)>0 ? `rows.push(['','','','','','','Discount', -${order.discount}]);` : ''}
     rows.push(['','','','','','','Grand Total', ${order.total||0}]);
+    ${ order.paymentMethod==='cod' && (order.advanceAmount||0)>0 ? `rows.push(['','','','','','','Advance Paid', -${order.advanceAmount}]);` : '' }
+    ${ order.paymentMethod==='cod' ? `rows.push(['','','','','','','To Collect (COD)', ${Math.max(0,(order.total||0)-(order.advanceAmount||0))}]);` : '' }
     const csv = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\\n');
     const blob = new Blob(['\\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
     const a = document.createElement('a');
@@ -543,7 +549,7 @@ const OrdersPage: React.FC = () => {
             <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-400 text-xs mb-1">Customer</p><p className="font-bold">{selected.user?.name}</p><p className="text-gray-500 text-xs">{selected.user?.phone}</p></div>
-                <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-400 text-xs mb-1">Payment</p><p className="font-bold text-lg">₹{selected.total}</p><p className="uppercase text-orange-500 text-xs font-bold">{selected.paymentMethod}</p></div>
+                <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-400 text-xs mb-1">Payment</p><p className="font-bold text-lg">₹{selected.total}</p><p className="uppercase text-orange-500 text-xs font-bold">{selected.paymentMethod}</p>{selected.paymentMethod==='cod' && selected.advanceAmount>0 && <p className="text-green-600 text-xs font-semibold mt-0.5">Advance ₹{selected.advanceAmount} paid ✓</p>}{selected.paymentMethod==='cod' && <p className="text-red-600 text-xs font-semibold">Collect: ₹{Math.max(0,selected.total-(selected.advanceAmount||0))}</p>}</div>
               </div>
               {selected.trackingNumber && (
                 <div className="bg-green-50 rounded-xl p-3 text-sm">
@@ -567,6 +573,8 @@ const OrdersPage: React.FC = () => {
                 <div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{selected.shippingCharge===0?'FREE':'₹'+selected.shippingCharge}</span></div>
                 {selected.discount>0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>-₹{selected.discount}</span></div>}
                 <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Total</span><span>₹{selected.total}</span></div>
+                {selected.paymentMethod==='cod' && selected.advanceAmount>0 && <div className="flex justify-between text-green-600 text-sm"><span>Advance Paid</span><span>-₹{selected.advanceAmount}</span></div>}
+                {selected.paymentMethod==='cod' && <div className="flex justify-between font-bold text-red-600 text-sm"><span>To Collect (COD)</span><span>₹{Math.max(0,selected.total-(selected.advanceAmount||0))}</span></div>}
               </div>
               {/* WhatsApp Status */}
               <div className={`rounded-xl p-3 text-xs ${selected.wa?.orderConfirmedSent ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
