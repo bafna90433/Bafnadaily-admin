@@ -15,9 +15,10 @@ interface FormState {
   minQty: string;
   perPiecePrice: string;
   perPacketText: string;
+  gstRate: string;
 }
 
-const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',colors:[],isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[], barcode: '', minQty: '1', perPiecePrice: '', perPacketText: '' }
+const INIT: FormState = { name:'',description:'',shortDescription:'',price:'',mrp:'',stock:'',sku:'',category:'',material:'',weight:'',tags:'',colors:[],isFeatured:false,isTrending:false,isNewArrival:false,isBestSeller:false,giftWrapping:false,images:[], barcode: '', minQty: '1', perPiecePrice: '', perPacketText: '', gstRate: '0' }
 
 const AddProductPage: React.FC = () => {
   const { id } = useParams<{id:string}>()
@@ -48,7 +49,8 @@ const AddProductPage: React.FC = () => {
           images: p.images || [], 
           barcode: p.barcode || '',
           perPiecePrice: p.perPiecePrice || '',
-          perPacketText: p.perPacketText || ''
+          perPacketText: p.perPacketText || '',
+          gstRate: String(p.gstRate ?? 0)
         })
       }).catch(() => navigate('/products'))
     } else {
@@ -141,7 +143,8 @@ const AddProductPage: React.FC = () => {
         colors: form.colors.filter(c => c.name).map(c => ({ name: c.name, hex: c.hex })),
         tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [],
         perPiecePrice: form.perPiecePrice,
-        perPacketText: form.perPacketText
+        perPacketText: form.perPacketText,
+        gstRate: Number(form.gstRate || 0)
       }
       
       console.log('Sending payload:', payload);
@@ -455,7 +458,19 @@ const AddProductPage: React.FC = () => {
                   <input value={form.perPacketText} onChange={e=>set('perPacketText',e.target.value)} className="input" placeholder="e.g. Pack of 4"/>
                 </div>
               </div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">SKU</label><input value={form.sku} onChange={e=>set('sku',e.target.value)} className="input" placeholder="RET-KEY-001"/></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">SKU</label><input value={form.sku} onChange={e=>set('sku',e.target.value)} className="input" placeholder="RET-KEY-001"/></div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">GST Rate (%)</label>
+                  <select value={form.gstRate} onChange={e=>set('gstRate',e.target.value)} className="input">
+                    <option value="0">0% (Exempt)</option>
+                    <option value="5">5%</option>
+                    <option value="12">12%</option>
+                    <option value="18">18%</option>
+                    <option value="28">28%</option>
+                  </select>
+                </div>
+              </div>
               <div className="pt-2 border-t mt-4">
                 <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Identity & Barcode</label>
                 <div className="flex gap-2 mb-4">

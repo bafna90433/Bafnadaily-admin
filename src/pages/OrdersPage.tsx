@@ -146,6 +146,7 @@ const printInvoice = (order: any, settings: any) => {
     <div class="st"><span>Grand Total</span><span>₹${Number(order.total||0).toLocaleString('en-IN')}</span></div>
     ${order.paymentMethod==='cod' && (order.advanceAmount||0)>0?`<div class="sr" style="color:#10b981"><span>Advance Paid</span><span>-₹${Number(order.advanceAmount).toLocaleString('en-IN')}</span></div>`:''}
     ${order.paymentMethod==='cod'?`<div class="st" style="color:#ef4444"><span>To Collect (COD)</span><span>₹${Math.max(0,Number(order.total||0)-Number(order.advanceAmount||0)).toLocaleString('en-IN')}</span></div>`:''}
+    ${(() => { const gstAmt = (order.items||[]).reduce((s:number,it:any)=>{ const r=it.gstRate||0; const lt=it.price*it.quantity; return s+(r>0?lt*r/(100+r):0) },0); return gstAmt>0?`<div class="sr" style="color:#6366f1;font-size:11px;border-top:1px dashed #e2e8f0;padding-top:6px"><span>GST included in total (${order.gstin?'GSTIN: '+order.gstin:'incl.'})</span><span>₹${gstAmt.toFixed(2)}</span></div>`:'' })()}
   </div>
 
   <div class="foot">
