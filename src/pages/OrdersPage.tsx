@@ -24,6 +24,9 @@ const exportExcel = (order: any) => {
   rows.push(['', '', '', '', '', '', 'Grand Total', order.total || 0])
   if (order.paymentMethod === 'cod' && (order.advanceAmount || 0) > 0) rows.push(['', '', '', '', '', '', 'Advance Paid', -(order.advanceAmount)])
   if (order.paymentMethod === 'cod') rows.push(['', '', '', '', '', '', 'To Collect (COD)', Math.max(0, (order.total || 0) - (order.advanceAmount || 0))])
+  const gstByRateExcel: Record<number,number> = {}
+  ;(order.items||[]).forEach((it:any) => { const r=it.gstRate||0; if(!r) return; gstByRateExcel[r]=(gstByRateExcel[r]||0)+it.price*it.quantity*r/(100+r) })
+  Object.entries(gstByRateExcel).sort(([a],[b])=>Number(a)-Number(b)).forEach(([r,a]) => rows.push(['','','','','','',`GST @ ${r}% (incl.)`, Number((a as number).toFixed(2))]))
   const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n')
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
   const a = document.createElement('a')
@@ -147,7 +150,19 @@ const printInvoice = (order: any, settings: any) => {
     <div class="st"><span>Grand Total</span><span>₹${Number(order.total||0).toLocaleString('en-IN')}</span></div>
     ${order.paymentMethod==='cod' && (order.advanceAmount||0)>0?`<div class="sr" style="color:#10b981"><span>Advance Paid</span><span>-₹${Number(order.advanceAmount).toLocaleString('en-IN')}</span></div>`:''}
     ${order.paymentMethod==='cod'?`<div class="st" style="color:#ef4444"><span>To Collect (COD)</span><span>₹${Math.max(0,Number(order.total||0)-Number(order.advanceAmount||0)).toLocaleString('en-IN')}</span></div>`:''}
-    ${(() => { const gstAmt = (order.items||[]).reduce((s:number,it:any)=>{ const r=it.gstRate||0; const lt=it.price*it.quantity; return s+(r>0?lt*r/(100+r):0) },0); return gstAmt>0?`<div class="sr" style="color:#6366f1;font-size:11px;border-top:1px dashed #e2e8f0;padding-top:6px"><span>GST included in total (${order.gstin?'GSTIN: '+order.gstin:'incl.'})</span><span>₹${gstAmt.toFixed(2)}</span></div>`:'' })()}
+    ${(() => {
+      const byRate: Record<number,number> = {}
+      ;(order.items||[]).forEach((it:any) => {
+        const r = it.gstRate||0; if(!r) return
+        const amt = it.price*it.quantity*r/(100+r)
+        byRate[r] = (byRate[r]||0)+amt
+      })
+      const entries = Object.entries(byRate).sort(([a],[b])=>Number(a)-Number(b))
+      if(!entries.length) return ''
+      return `<div style="border-top:1px dashed #e2e8f0;padding-top:6px;margin-top:4px">` +
+        entries.map(([r,a])=>`<div class="sr" style="color:#6366f1;font-size:11px"><span>GST @ ${r}% (included)</span><span>₹${(a as number).toFixed(2)}</span></div>`).join('') +
+        `</div>`
+    })()}
   </div>
 
   <div class="foot">
@@ -577,6 +592,22 @@ const OrdersPage: React.FC = () => {
                 <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Total</span><span>₹{selected.total}</span></div>
                 {selected.paymentMethod==='cod' && selected.advanceAmount>0 && <div className="flex justify-between text-green-600 text-sm"><span>Advance Paid</span><span>-₹{selected.advanceAmount}</span></div>}
                 {selected.paymentMethod==='cod' && <div className="flex justify-between font-bold text-red-600 text-sm"><span>To Collect (COD)</span><span>₹{Math.max(0,selected.total-(selected.advanceAmount||0))}</span></div>}
+                {(() => {
+                  const byRate: Record<number,number> = {}
+                  ;(selected.items||[]).forEach((it:any) => {
+                    const r=it.gstRate||0; if(!r) return
+                    byRate[r]=(byRate[r]||0)+it.price*it.quantity*r/(100+r)
+                  })
+                  const entries=Object.entries(byRate).sort(([a],[b])=>Number(a)-Number(b))
+                  if(!entries.length) return null
+                  return <div className="pt-1 border-t border-dashed space-y-0.5">
+                    {entries.map(([r,a])=>(
+                      <div key={r} className="flex justify-between text-indigo-500 text-xs">
+                        <span>GST @ {r}% (incl.)</span><span>₹{(a as number).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                })()}
                 {selected.gstin && <div className="flex justify-between text-indigo-600 text-xs pt-1 border-t border-dashed"><span>🧾 GSTIN</span><span className="font-mono font-bold">{selected.gstin}</span></div>}
               </div>
               {/* WhatsApp Status */}
