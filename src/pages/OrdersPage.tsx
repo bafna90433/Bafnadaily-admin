@@ -1,40 +1,47 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Eye, ChevronDown, Truck, X, FileText, Trash2 } from 'lucide-react'
 
-const exportExcel = (order: any) => {
-  const orderDt = new Date(order.createdAt)
-  const orderDate = orderDt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-  const orderTime = orderDt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-  const customerName = order.user?.name || order.shippingAddress?.name || '—'
+const downloadExcelFormat = (orders: any[], filename: string) => {
   const rows: any[][] = [
-    ['Order Number', order.orderNumber, '', '', '', '', '', ''],
-    ['Customer', customerName, '', '', '', '', '', ''],
-    ['Order Date & Time', `${orderDate} ${orderTime}`, '', '', '', '', '', ''],
-    ...(order.gstin ? [['Customer GSTIN', order.gstin, '', '', '', '', '', '']] : []),
-    ['', '', '', '', '', '', '', ''],
-    ['#', 'SKU', 'Product', 'Variant', 'Qty', 'MRP (₹)', 'Rate (₹)', 'Amount (₹)'],
+    ['Order_Numb', 'Product_Name', 'SKU', 'MRP', 'Qty', 'Order_Date', 'Customer_Name', 'Shop_Name', 'City', 'State']
   ]
-  ;(order.items || []).forEach((it: any, i: number) => {
-    rows.push([i + 1, it.sku || '', it.name, it.variant || '', it.quantity, it.mrp || it.price, it.price, it.price * it.quantity])
+  
+  orders.forEach(order => {
+    const orderDt = new Date(order.createdAt)
+    const orderDate = orderDt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    const customerName = order.user?.name || '—'
+    const shopName = order.shippingAddress?.name || '—'
+    const city = order.shippingAddress?.city || '—'
+    const state = order.shippingAddress?.state || '—'
+    
+    ;(order.items || []).forEach((it: any) => {
+      rows.push([
+        order.orderNumber,
+        it.name,
+        it.sku || '',
+        it.mrp || it.price || 0,
+        it.quantity,
+        orderDate,
+        customerName,
+        shopName,
+        city,
+        state
+      ])
+    })
   })
-  rows.push(['', '', '', '', '', '', '', ''])
-  rows.push(['', '', '', '', '', '', 'Subtotal', order.subtotal || 0])
-  rows.push(['', '', '', '', '', '', 'Shipping', order.shippingCharge || 0])
-  if ((order.discount || 0) > 0) rows.push(['', '', '', '', '', '', 'Discount', -(order.discount)])
-  rows.push(['', '', '', '', '', '', 'Grand Total', order.total || 0])
-  if (order.paymentMethod === 'cod' && (order.advanceAmount || 0) > 0) rows.push(['', '', '', '', '', '', 'Advance Paid', -(order.advanceAmount)])
-  if (order.paymentMethod === 'cod') rows.push(['', '', '', '', '', '', 'To Collect (COD)', Math.max(0, (order.total || 0) - (order.advanceAmount || 0))])
-  const gstByRateExcel: Record<number,number> = {}
-  ;(order.items||[]).forEach((it:any) => { const r=it.gstRate||0; if(!r) return; gstByRateExcel[r]=(gstByRateExcel[r]||0)+it.price*it.quantity*r/(100+r) })
-  Object.entries(gstByRateExcel).sort(([a],[b])=>Number(a)-Number(b)).forEach(([r,a]) => rows.push(['','','','','','',`GST @ ${r}% (incl.)`, Number((a as number).toFixed(2))]))
+
   const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n')
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `Order_${order.orderNumber}.csv`
+  a.download = filename
   a.click()
   URL.revokeObjectURL(a.href)
 }
+
+const exportExcel = (order: any) => downloadExcelFormat([order], `Order_${order.orderNumber}.csv`)
+const bulkExportExcel = (orders: any[]) => downloadExcelFormat(orders, `Bulk_Orders_Export_${new Date().getTime()}.csv`)
+
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -424,12 +431,20 @@ const OrdersPage: React.FC = () => {
         <div><h1 className="text-2xl font-bold">Orders</h1><p className="text-gray-500 text-sm">{total} total orders</p></div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
-            <button
-              onClick={openBulkDeleteModal}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
-            >
-              <Trash2 size={15}/> Delete {selectedIds.size} Selected
-            </button>
+            <>
+              <button
+                onClick={() => bulkExportExcel(orders.filter(o => selectedIds.has(o._id)))}
+                className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+              >
+                📊 Export {selectedIds.size} Selected
+              </button>
+              <button
+                onClick={openBulkDeleteModal}
+                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+              >
+                <Trash2 size={15}/> Delete {selectedIds.size} Selected
+              </button>
+            </>
           )}
           <select value={filter} onChange={e => { setFilter(e.target.value); setPage(1); setSelectedIds(new Set()) }} className="input w-44 py-2">
             <option value="">All Orders</option>
@@ -524,7 +539,10 @@ const OrdersPage: React.FC = () => {
                     </div>
                   </td>
                   <td className="td">
-                    <button onClick={() => printInvoice(o, siteSettings)} className="p-1.5 text-pink-500 hover:bg-pink-50 rounded-lg" title="Invoice"><FileText size={15}/></button>
+                    <div className="flex gap-1 flex-wrap">
+                      <button onClick={() => exportExcel(o)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg" title="Excel"><span className="text-[15px]">📊</span></button>
+                      <button onClick={() => printInvoice(o, siteSettings)} className="p-1.5 text-pink-500 hover:bg-pink-50 rounded-lg" title="Invoice"><FileText size={15}/></button>
+                    </div>
                   </td>
                 </tr>
               ))}
