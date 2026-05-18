@@ -54,6 +54,43 @@ const StockCell: React.FC<{ product: any; onSave: (id: string, stock: number) =>
   )
 }
 
+// ── Inline GST Cell ───────────────────────────────────────────────────────────
+const GSTCell: React.FC<{ product: any; onSave: (id: string, gstRate: number) => Promise<void> }> = ({ product, onSave }) => {
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const save = async (rate: number) => {
+    setSaving(true)
+    await onSave(product._id, rate)
+    setSaving(false)
+    setEditing(false)
+  }
+
+  if (saving) return <div className="flex items-center gap-1"><Loader2 size={12} className="animate-spin text-gray-400"/><span className="text-xs text-gray-400">{product.gstRate||0}%</span></div>
+
+  if (editing) return (
+    <div className="flex items-center gap-1">
+      <select autoFocus defaultValue={String(product.gstRate||0)} onChange={e => save(Number(e.target.value))} onBlur={() => setEditing(false)}
+        className="text-xs border-2 border-primary rounded-lg px-1.5 py-0.5 focus:outline-none bg-white font-bold">
+        <option value="0">0%</option>
+        <option value="5">5%</option>
+        <option value="12">12%</option>
+        <option value="18">18%</option>
+        <option value="28">28%</option>
+      </select>
+    </div>
+  )
+
+  const rate = product.gstRate || 0
+  return (
+    <button onClick={() => setEditing(true)} title="Click to set GST rate"
+      className={`text-xs font-bold px-2 py-1 rounded-lg border border-transparent hover:border-gray-200 hover:bg-gray-50 transition-all cursor-pointer group ${rate > 0 ? 'text-indigo-600' : 'text-gray-400'}`}>
+      {rate > 0 ? `${rate}% GST` : '—'}
+      <span className="ml-1 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+    </button>
+  )
+}
+
 // ── Inline Category Cell ──────────────────────────────────────────────────────
 const CategoryCell: React.FC<{ product: any; categories: any[]; onSave: (id: string, catId: string) => Promise<void> }> = ({ product, categories, onSave }) => {
   const [saving, setSaving] = useState(false)
@@ -136,6 +173,14 @@ const ProductsPage: React.FC = () => {
       setProducts(prev => prev.map(p => p._id === id ? { ...p, category: cat || { _id: catId, name: '—' } } : p))
       toast.success(`Category changed to ${cat?.name || '—'}`)
     } catch { toast.error('Category update failed') }
+  }
+
+  const saveGst = async (id: string, gstRate: number) => {
+    try {
+      await api.put(`/products/${id}`, { gstRate })
+      setProducts(prev => prev.map(p => p._id === id ? { ...p, gstRate } : p))
+      toast.success(`GST set to ${gstRate}%`)
+    } catch { toast.error('GST update failed') }
   }
 
   const del = async (id: string, name: string) => {
@@ -258,7 +303,7 @@ const ProductsPage: React.FC = () => {
             )}
           </div>
           {debouncedSearch && <p className="text-xs text-gray-400">Results for "<span className="font-semibold text-gray-600">{debouncedSearch}</span>"</p>}
-          <p className="text-xs text-gray-400 ml-auto">💡 Click <strong>stock</strong> or <strong>category</strong> to edit inline</p>
+          <p className="text-xs text-gray-400 ml-auto">💡 Click <strong>stock</strong>, <strong>category</strong> or <strong>GST</strong> to edit inline</p>
         </div>
 
         <div className="overflow-x-auto">
@@ -278,6 +323,7 @@ const ProductsPage: React.FC = () => {
                 <th className="th">Category <span className="text-primary text-xs font-normal">(click)</span></th>
                 <th className="th">Price</th>
                 <th className="th">Stock <span className="text-primary text-xs font-normal">(click)</span></th>
+                <th className="th">GST <span className="text-primary text-xs font-normal">(click)</span></th>
                 <th className="th">Badges</th>
                 <th className="th">Status</th>
                 <th className="th">Actions</th>
@@ -319,6 +365,9 @@ const ProductsPage: React.FC = () => {
 
                   {/* Stock inline */}
                   <td className="td"><StockCell product={p} onSave={saveStock}/></td>
+
+                  {/* GST inline */}
+                  <td className="td"><GSTCell product={p} onSave={saveGst}/></td>
 
                   {/* Badges */}
                   <td className="td">
