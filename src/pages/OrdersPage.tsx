@@ -440,6 +440,8 @@ const OrdersPage: React.FC = () => {
                     <span className={`badge ${o.paymentMethod==='cod'?'bg-orange-100 text-orange-700':o.paymentMethod==='upi'?'bg-blue-100 text-blue-700':'bg-purple-100 text-purple-700'} uppercase`}>{o.paymentMethod}</span>
                     {o.paymentStatus==='pending' && o.paymentMethod!=='cod' && <span className="ml-1 badge bg-red-100 text-red-600 text-xs">Unpaid</span>}
                     {o.paymentStatus==='paid' && o.paymentMethod!=='cod' && <span className="ml-1 badge bg-green-100 text-green-700 text-xs">Paid ✓</span>}
+                    {o.paymentMethod==='cod' && o.advanceAmount > 0 && <div className="mt-0.5 text-xs text-green-700 font-semibold">Advance ₹{o.advanceAmount} ✓</div>}
+                    {o.paymentMethod==='cod' && (!o.advanceAmount || o.advanceAmount === 0) && <div className="mt-0.5 text-xs text-red-500 font-semibold">No advance</div>}
                   </td>
                   <td className="td">
                     <div className="relative inline-block">
