@@ -66,15 +66,28 @@ const printInvoice = (order: any, settings: any) => {
   }
 
   const getItemCategory = (it: any) => {
+    let catName = ''
     if (it.product?.category?.name) {
-      return it.product.category.name.toLowerCase()
+      catName = it.product.category.name.toLowerCase()
+    } else {
+      const name = (it.name || '').toLowerCase()
+      const sku = (it.sku || '').toUpperCase()
+      if (sku.startsWith('KEY') || name.includes('keychain') || name.includes('ring')) {
+        return 'keychain'
+      }
+      return 'toys'
     }
-    const name = (it.name || '').toLowerCase()
-    const sku = (it.sku || '').toUpperCase()
-    if (sku.startsWith('KEY') || name.includes('keychain') || name.includes('ring')) {
+
+    if (catName.includes('keychain') || catName.includes('keyring') || catName.includes('key')) {
       return 'keychain'
     }
-    return 'toys'
+    if (catName.includes('plush')) {
+      return 'plushies'
+    }
+    if (catName.includes('toy')) {
+      return 'toys'
+    }
+    return catName
   }
 
   const itemRows = (order.items || []).map((it: any, i: number) => {
