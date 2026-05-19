@@ -60,9 +60,9 @@ const printInvoice = (order: any, settings: any) => {
     const name = (it.name || '').toLowerCase()
     const sku = (it.sku || '').toUpperCase()
     if (sku.startsWith('KEY') || name.includes('keychain') || name.includes('ring')) {
-      return 5
+      return 18
     }
-    return 18
+    return 5
   }
 
   const getItemCategory = (it: any) => {
