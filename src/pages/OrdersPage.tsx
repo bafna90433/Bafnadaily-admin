@@ -781,22 +781,7 @@ const OrdersPage: React.FC = () => {
                 <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Total</span><span>₹{selected.total}</span></div>
                 {selected.paymentMethod==='cod' && selected.advanceAmount>0 && <div className="flex justify-between text-green-600 text-sm"><span>Advance Paid</span><span>-₹{selected.advanceAmount}</span></div>}
                 {selected.paymentMethod==='cod' && <div className="flex justify-between font-bold text-red-600 text-sm"><span>To Collect (COD)</span><span>₹{Math.max(0,selected.total-(selected.advanceAmount||0))}</span></div>}
-                {(() => {
-                  const byRate: Record<number,number> = {}
-                  ;(selected.items||[]).forEach((it:any) => {
-                    const r=it.gstRate||0; if(!r) return
-                    byRate[r]=(byRate[r]||0)+it.price*it.quantity*r/(100+r)
-                  })
-                  const entries=Object.entries(byRate).sort(([a],[b])=>Number(a)-Number(b))
-                  if(!entries.length) return null
-                  return <div className="pt-1 border-t border-dashed space-y-0.5">
-                    {entries.map(([r,a])=>(
-                      <div key={r} className="flex justify-between text-indigo-500 text-xs">
-                        <span>GST @ {r}% (incl.)</span><span>₹{(a as number).toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                })()}
+
                 {selected.gstin && <div className="flex justify-between text-indigo-600 text-xs pt-1 border-t border-dashed"><span>🧾 GSTIN</span><span className="font-mono font-bold">{selected.gstin}</span></div>}
               </div>
               {/* WhatsApp Status */}
