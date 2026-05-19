@@ -55,9 +55,30 @@ const printInvoice = (order: any, settings: any) => {
   const siteName = settings?.siteName || 'Store'
   const logo = settings?.siteLogo || ''
 
+  const getGstRate = (it: any) => {
+    if (it.gstRate && it.gstRate > 0) return it.gstRate
+    const name = (it.name || '').toLowerCase()
+    const sku = (it.sku || '').toUpperCase()
+    if (sku.startsWith('KEY') || name.includes('keychain') || name.includes('ring')) {
+      return 5
+    }
+    return 18
+  }
+
+  const getItemCategory = (it: any) => {
+    if (it.product?.category?.name) {
+      return it.product.category.name.toLowerCase()
+    }
+    const name = (it.name || '').toLowerCase()
+    const sku = (it.sku || '').toUpperCase()
+    if (sku.startsWith('KEY') || name.includes('keychain') || name.includes('ring')) {
+      return 'keychain'
+    }
+    return 'toys'
+  }
+
   const itemRows = (order.items || []).map((it: any, i: number) => {
-    const r = it.gstRate || 0
-    const gstAmt = (it.price * it.quantity * r) / (100 + r)
+    const r = getGstRate(it)
     return `
     <tr>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;color:#64748b">${i+1}</td>
@@ -69,7 +90,6 @@ const printInvoice = (order: any, settings: any) => {
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center">${it.quantity}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:right;color:#94a3b8;text-decoration:${(it.mrp && it.mrp > it.price) ? 'line-through' : 'none'}">₹${Number(it.mrp || it.price).toLocaleString('en-IN')}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:right">₹${Number(it.price).toLocaleString('en-IN')}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:11px">${r}%<br/><span style="color:#64748b;font-size:10px">₹${gstAmt.toFixed(2)}</span></td>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700">₹${(it.price*it.quantity).toLocaleString('en-IN')}</td>
     </tr>`
   }).join('')
@@ -101,7 +121,7 @@ const printInvoice = (order: any, settings: any) => {
     th:nth-child(1){text-align:center;width:36px}
     th:nth-child(2){width:90px}
     th:nth-child(4){text-align:center}
-    th:nth-child(5),th:nth-child(6),th:nth-child(7),th:nth-child(8){text-align:right}
+    th:nth-child(5),th:nth-child(6){text-align:right}
     .sum{margin-left:auto;width:260px;margin-top:4px}
     .sr{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#475569;border-bottom:1px solid #f1f5f9}
     .st{display:flex;justify-content:space-between;padding:10px 0 0;font-size:16px;font-weight:800;border-top:2px solid #1e293b;margin-top:4px}
@@ -151,7 +171,7 @@ const printInvoice = (order: any, settings: any) => {
   ${order.trackingNumber ? `<div class="track">🚚 <strong>Shipped via ${order.courierName||'Courier'}</strong> &nbsp;·&nbsp; Tracking: <strong>${order.trackingNumber}</strong></div>` : ''}
 
   <table>
-    <thead><tr><th>#</th><th>SKU</th><th>Product</th><th>Qty</th><th>MRP</th><th>Rate</th><th>GST</th><th>Amount</th></tr></thead>
+    <thead><tr><th>#</th><th>SKU</th><th>Product</th><th>Qty</th><th>MRP</th><th>Rate</th><th>Amount</th></tr></thead>
     <tbody>${itemRows}</tbody>
   </table>
 
@@ -163,16 +183,20 @@ const printInvoice = (order: any, settings: any) => {
     ${order.paymentMethod==='cod' && (order.advanceAmount||0)>0?`<div class="sr" style="color:#10b981"><span>Advance Paid</span><span>-₹${Number(order.advanceAmount).toLocaleString('en-IN')}</span></div>`:''}
     ${order.paymentMethod==='cod'?`<div class="st" style="color:#ef4444"><span>To Collect (COD)</span><span>₹${Math.max(0,Number(order.total||0)-Number(order.advanceAmount||0)).toLocaleString('en-IN')}</span></div>`:''}
     ${(() => {
-      const byRate: Record<number,number> = {}
+      const byCategory: Record<string, { rate: number; amount: number }> = {}
       ;(order.items||[]).forEach((it:any) => {
-        const r = it.gstRate||0; if(!r) return
+        const r = getGstRate(it); if(!r) return
+        const cat = getItemCategory(it)
         const amt = it.price*it.quantity*r/(100+r)
-        byRate[r] = (byRate[r]||0)+amt
+        if (!byCategory[cat]) {
+          byCategory[cat] = { rate: r, amount: 0 }
+        }
+        byCategory[cat].amount += amt
       })
-      const entries = Object.entries(byRate).sort(([a],[b])=>Number(a)-Number(b))
+      const entries = Object.entries(byCategory).sort(([a],[b])=>a.localeCompare(b))
       if(!entries.length) return ''
       return `<div style="border-top:1px dashed #e2e8f0;padding-top:6px;margin-top:4px">` +
-        entries.map(([r,a])=>`<div class="sr" style="color:#6366f1;font-size:11px"><span>GST @ ${r}% (included)</span><span>₹${(a as number).toFixed(2)}</span></div>`).join('') +
+        entries.map(([cat, info])=>`<div class="sr" style="color:#6366f1;font-size:11px"><span>${cat} GST @ ${info.rate}% (included)</span><span>₹${info.amount.toFixed(2)}</span></div>`).join('') +
         `</div>`
     })()}
   </div>
