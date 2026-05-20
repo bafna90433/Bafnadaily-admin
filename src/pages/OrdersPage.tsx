@@ -578,7 +578,8 @@ const OrdersPage: React.FC = () => {
     if (!shipOrder) return
     setShipErr('')
 
-    const payload: any = { status: 'shipped', shipProvider }
+    const isReship = !!shipOrder.trackingNumber
+    const payload: any = { status: 'shipped', shipProvider, ...(isReship ? { forceReship: true } : {}) }
 
     if (shipProvider === 'delhivery') {
       if (totalBoxQty === 0) { setShipErr('Kam se kam 1 box add karo.'); return }
@@ -858,10 +859,21 @@ const OrdersPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShipOpen(false)}>
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white">
-              <h2 className="font-bold text-lg flex items-center gap-2"><Truck size={18} className="text-orange-500"/> Ship #{shipOrder.orderNumber}</h2>
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <Truck size={18} className="text-orange-500"/>
+                {shipOrder.trackingNumber ? '🔄 Re-Ship' : 'Ship'} #{shipOrder.orderNumber}
+              </h2>
               <button onClick={() => setShipOpen(false)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={18}/></button>
             </div>
             <div className="p-5 space-y-4">
+              {/* Re-ship warning: old AWB exists */}
+              {shipOrder.trackingNumber && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm">
+                  <p className="font-bold text-amber-700 mb-1">⚠️ Purana AWB exist karta hai</p>
+                  <p className="text-amber-600 text-xs font-mono">{shipOrder.courierName}: <strong>{shipOrder.trackingNumber}</strong></p>
+                  <p className="text-amber-600 text-xs mt-1">Naya AWB generate hone par purana replace ho jayega aur WhatsApp tracking dobara bheja jayega.</p>
+                </div>
+              )}
               {/* Customer summary */}
               <div className="bg-gray-50 rounded-xl p-3 text-sm">
                 <p className="font-semibold">{shipOrder.shippingAddress?.name}</p>
@@ -972,7 +984,7 @@ const OrdersPage: React.FC = () => {
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setShipOpen(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancel</button>
                 <button onClick={submitShip} disabled={shipping} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
-                  {shipping ? 'Processing...' : <><Truck size={15}/> {shipProvider === 'delhivery' ? 'Generate AWB' : 'Mark Shipped'}</>}
+                  {shipping ? 'Processing...' : <><Truck size={15}/> {shipProvider === 'delhivery' ? (shipOrder.trackingNumber ? '🔄 Re-Generate AWB' : 'Generate AWB') : 'Mark Shipped'}</>}
                 </button>
               </div>
               <p className="text-xs text-gray-400 text-center">WhatsApp tracking message customer ko automatically jayega</p>
