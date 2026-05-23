@@ -430,7 +430,7 @@ const OrdersPage: React.FC = () => {
   // Ship modal state
   const [shipOpen, setShipOpen] = useState(false)
   const [shipOrder, setShipOrder] = useState<any>(null)
-  const [shipProvider, setShipProvider] = useState<'delhivery'|'shiprocket'|'manual'>('delhivery')
+  const [shipProvider, setShipProvider] = useState<'delhivery'|'nimbuspost'|'shiprocket'|'manual'>('delhivery')
   const [manualTracking, setManualTracking] = useState('')
   const [manualCourier, setManualCourier] = useState('')
   const [boxes, setBoxes] = useState<Record<BoxSize, { qty: number; weight: number }>>({ A28:{qty:0,weight:0}, A06:{qty:0,weight:0}, A08:{qty:0,weight:0}, A31:{qty:0,weight:0}, A18:{qty:0,weight:0}, CVR:{qty:0,weight:0} })
@@ -893,7 +893,7 @@ const OrdersPage: React.FC = () => {
               <div>
                 <p className="text-sm font-semibold mb-2">Courier Provider</p>
                 <div className="flex gap-2">
-                  {([['delhivery','📦 Delhivery'],['shiprocket','🚀 Shiprocket'],['manual','✏️ Manual']] as const).map(([val, label]) => (
+                  {([['delhivery','📦 Delhivery'],['nimbuspost','🔴 NimbusPost'],['shiprocket','🚀 Shiprocket'],['manual','✏️ Manual']] as const).map(([val, label]) => (
                     <button key={val} type="button" onClick={() => setShipProvider(val)}
                       className={`flex-1 text-xs py-2 px-3 rounded-xl border font-semibold transition-colors ${shipProvider===val?'bg-orange-500 text-white border-orange-500':'border-gray-200 hover:border-orange-300'}`}>
                       {label}
@@ -902,8 +902,8 @@ const OrdersPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Delhivery: Box packing */}
-              {shipProvider === 'delhivery' && (
+              {/* Delhivery / NimbusPost: Box packing */}
+              {(shipProvider === 'delhivery' || shipProvider === 'nimbuspost') && (
                 <div>
                   <p className="text-sm font-semibold mb-2">📦 Packing Details</p>
                   <div className="space-y-2">
@@ -984,7 +984,11 @@ const OrdersPage: React.FC = () => {
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setShipOpen(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancel</button>
                 <button onClick={submitShip} disabled={shipping} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
-                  {shipping ? 'Processing...' : <><Truck size={15}/> {shipProvider === 'delhivery' ? (shipOrder.trackingNumber ? '🔄 Re-Generate AWB' : 'Generate AWB') : 'Mark Shipped'}</>}
+                  {shipping ? 'Processing...' : <><Truck size={15}/> {
+                    shipProvider === 'delhivery' ? (shipOrder.trackingNumber ? '🔄 Re-Generate AWB' : 'Generate AWB') :
+                    shipProvider === 'nimbuspost' ? (shipOrder.trackingNumber ? '🔄 Re-Generate AWB' : '🔴 Generate AWB') :
+                    'Mark Shipped'
+                  }</>}
                 </button>
               </div>
               <p className="text-xs text-gray-400 text-center">WhatsApp tracking message customer ko automatically jayega</p>

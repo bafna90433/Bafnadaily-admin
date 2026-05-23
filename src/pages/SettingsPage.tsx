@@ -325,6 +325,40 @@ const SettingsPage: React.FC = () => {
                   </>
                 )}
               </div>
+
+              {/* NimbusPost */}
+              <div className="card p-6 space-y-4">
+                <h3 className="font-bold text-lg border-b pb-3 flex items-center gap-2">
+                  🔴 NimbusPost Integration
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">27+ Couriers</span>
+                </h3>
+                <div className="flex items-center justify-between">
+                  <div><p className="font-semibold">Enable NimbusPost</p><p className="text-xs text-gray-400">Auto best courier + AWB (Delhivery, XpressBees, DTDC, Blue Dart)</p></div>
+                  <Toggle checked={settings.nimbuspost?.enabled} onChange={v => set('nimbuspost.enabled', v)}/>
+                </div>
+                {settings.nimbuspost?.enabled && (
+                  <>
+                    <div><label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">API Email</label>
+                      <input type="email" value={settings.nimbuspost?.email||''} onChange={e => set('nimbuspost.email', e.target.value)} className="input" placeholder="bafnatoyphotos+3982@gmail.com"/>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">API Password</label>
+                      <input type="password" value={settings.nimbuspost?.password||''} onChange={e => set('nimbuspost.password', e.target.value)} className="input" placeholder="API password"/>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Pickup Warehouse Name</label>
+                      <input type="text" value={settings.nimbuspost?.pickupWarehouseName||''} onChange={e => set('nimbuspost.pickupWarehouseName', e.target.value)} className="input" placeholder="e.g. BAFNATOYS or Primary"/>
+                      <p className="text-xs text-gray-400 mt-1">NimbusPost → Settings → Pickup Addresses → Warehouse Name exactly copy karo</p>
+                    </div>
+                    {settings.nimbuspost?.token && (
+                      <div className="flex items-center gap-2 text-green-600 text-sm font-semibold bg-green-50 rounded-xl p-3">
+                        <span className="w-2 h-2 bg-green-500 rounded-full inline-block animate-pulse"/> Token Active — Login successful
+                        {settings.nimbuspost?.tokenExpiry && <span className="text-xs text-gray-400 ml-1">(expires {new Date(settings.nimbuspost.tokenExpiry).toLocaleString('en-IN')})</span>}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </>
           )}
 

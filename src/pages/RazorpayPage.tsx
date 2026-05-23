@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { RefreshCw, Search, CreditCard, Copy, ExternalLink, RotateCcw } from 'lucide-react'
+import { RefreshCw, Search, CreditCard, Copy, ExternalLink, RotateCcw, Download } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -110,6 +110,55 @@ const RazorpayPage: React.FC = () => {
     } finally { setRefunding(false) }
   }
 
+  const exportExcel = () => {
+    if (filtered.length === 0) { toast.error('Koi data nahi export karne ke liye'); return }
+
+    const headers = ['Pay ID', 'Order #', 'Customer Name', 'Phone', 'Method', 'Method Detail', 'Amount (₹)', 'Fee (₹)', 'Tax (₹)', 'Net (₹)', 'Status', 'Date', 'Time']
+    const rows = filtered.map(p => [
+      p.id,
+      p.orderNumber || '',
+      p.customerName || '',
+      p.customerPhone || p.contact?.replace('+91', '') || '',
+      METHOD_LABEL[p.method] || p.method || '',
+      p.method === 'upi' ? (p.vpa || '') : p.method === 'netbanking' ? (p.bank || '') : p.method === 'card' ? `${p.card_network || ''} ****${p.card_last4 || ''}`.trim() : (p.wallet || ''),
+      p.amount,
+      p.fee || 0,
+      p.tax || 0,
+      p.net || p.amount,
+      p.status,
+      p.created_at ? new Date(p.created_at * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+      p.created_at ? new Date(p.created_at * 1000).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '',
+    ])
+
+    // Summary rows at bottom
+    const captured = filtered.filter(p => p.status === 'captured')
+    const totalAmt = captured.reduce((s, p) => s + p.amount, 0)
+    const totalFee = captured.reduce((s, p) => s + (p.fee || 0), 0)
+    const totalNet = captured.reduce((s, p) => s + (p.net || p.amount), 0)
+
+    const summaryRows = [
+      [],
+      ['SUMMARY', '', '', '', '', '', '', '', '', '', '', '', ''],
+      ['Total Payments', filtered.length, '', '', '', '', '', '', '', '', '', '', ''],
+      ['Successful (Captured)', captured.length, '', '', '', '', '', '', '', '', '', '', ''],
+      ['Failed', filtered.filter(p => p.status === 'failed').length, '', '', '', '', '', '', '', '', '', '', ''],
+      ['Refunded', filtered.filter(p => p.status === 'refunded').length, '', '', '', '', '', '', '', '', '', '', ''],
+      ['Total Collected (₹)', '', '', '', '', '', totalAmt.toFixed(2), '', '', '', '', '', ''],
+      ['Total Razorpay Fee (₹)', '', '', '', '', '', '', totalFee.toFixed(2), '', '', '', '', ''],
+      ['Net Settlement (₹)', '', '', '', '', '', '', '', '', totalNet.toFixed(2), '', '', ''],
+    ]
+
+    const allRows = [headers, ...rows, ...summaryRows]
+    const csv = allRows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `Razorpay_Payments_${new Date().toLocaleDateString('en-IN').replace(/\//g, '-')}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+    toast.success(`${filtered.length} payments exported!`)
+  }
+
   return (
     <div>
       {/* Header */}
@@ -120,10 +169,16 @@ const RazorpayPage: React.FC = () => {
           </h1>
           <p className="text-gray-500 text-sm mt-0.5">Live transactions from Razorpay dashboard</p>
         </div>
-        <button onClick={fetchPayments}
-          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''}/> Refresh
-        </button>
+        <div className="flex gap-2">
+          <button onClick={exportExcel}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
+            <Download size={14}/> Export Excel
+          </button>
+          <button onClick={fetchPayments}
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''}/> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
