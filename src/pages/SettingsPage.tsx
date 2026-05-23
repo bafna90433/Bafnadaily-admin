@@ -347,9 +347,43 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Pickup Warehouse Name</label>
-                      <input type="text" value={settings.nimbuspost?.pickupWarehouseName||''} onChange={e => set('nimbuspost.pickupWarehouseName', e.target.value)} className="input" placeholder="e.g. BAFNATOYS or Primary"/>
+                      <input type="text" value={settings.nimbuspost?.pickupWarehouseName||''} onChange={e => set('nimbuspost.pickupWarehouseName', e.target.value)} className="input" placeholder="e.g. Bafnatoys"/>
                       <p className="text-xs text-gray-400 mt-1">NimbusPost → Settings → Pickup Addresses → Warehouse Name exactly copy karo</p>
                     </div>
+
+                    {/* Pickup Address */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wide">📍 Pickup Address (Tumhara warehouse)</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Contact Name *</label>
+                          <input type="text" value={settings.nimbuspost?.pickupContactName||''} onChange={e => set('nimbuspost.pickupContactName', e.target.value)} className="input" placeholder="e.g. Hardik Bafna"/>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Phone *</label>
+                          <input type="text" value={settings.nimbuspost?.pickupPhone||''} onChange={e => set('nimbuspost.pickupPhone', e.target.value)} className="input" placeholder="10-digit mobile"/>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">Address *</label>
+                        <input type="text" value={settings.nimbuspost?.pickupAddress||''} onChange={e => set('nimbuspost.pickupAddress', e.target.value)} className="input" placeholder="Street / locality / area"/>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">City *</label>
+                          <input type="text" value={settings.nimbuspost?.pickupCity||''} onChange={e => set('nimbuspost.pickupCity', e.target.value)} className="input" placeholder="City"/>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">State *</label>
+                          <input type="text" value={settings.nimbuspost?.pickupState||''} onChange={e => set('nimbuspost.pickupState', e.target.value)} className="input" placeholder="State"/>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Pincode *</label>
+                          <input type="text" value={settings.nimbuspost?.pickupPincode||''} onChange={e => set('nimbuspost.pickupPincode', e.target.value)} className="input" placeholder="6-digit pin"/>
+                        </div>
+                      </div>
+                    </div>
+
                     {settings.nimbuspost?.token && (
                       <div className="flex items-center gap-2 text-green-600 text-sm font-semibold bg-green-50 rounded-xl p-3">
                         <span className="w-2 h-2 bg-green-500 rounded-full inline-block animate-pulse"/> Token Active — Login successful
