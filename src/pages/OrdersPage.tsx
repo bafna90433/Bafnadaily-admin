@@ -602,7 +602,7 @@ const OrdersPage: React.FC = () => {
 
   const fetchNpCouriers = async () => {
     if (!shipOrder) return
-    if (totalBoxQty === 0) { setShipErr('Pehle boxes fill karo.'); return }
+    if (totalBoxQty === 0) { toast.error('Pehle boxes fill karo.'); return }
     setShipErr('')
     setNpCourierLoading(true)
     try {
@@ -613,7 +613,7 @@ const OrdersPage: React.FC = () => {
       setNpCourierStep(true)
       setNpSelectedCourierId(null)
     } catch (e: any) {
-      setShipErr(e?.response?.data?.message || 'Couriers fetch karne me error')
+      toast.error(e?.response?.data?.message || 'Couriers fetch karne me error')
     } finally {
       setNpCourierLoading(false)
     }
@@ -986,7 +986,7 @@ const OrdersPage: React.FC = () => {
                               : (boxes[size].weight > 0 ? `${(boxes[size].weight*1000).toLocaleString()}g` : `${(BOX_WEIGHTS_KG[size]*1000).toFixed(0)}g/pc`)}
                           </span>
                         </div>
-                        {size === 'CVR' && (
+                        {size === 'CVR' && boxes['CVR'].qty > 0 && (
                           <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-2">
                             <p className="text-xs font-semibold text-blue-700 mb-1">✉️ Cover ka size aur weight daalo</p>
                             <div className="flex gap-2">
