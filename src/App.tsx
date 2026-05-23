@@ -19,6 +19,7 @@ import StaffReportsPage from './pages/StaffReportsPage'
 import DealsOfDayPage from './pages/DealsOfDayPage'
 import PurchaseOrderPage from './pages/PurchaseOrderPage'
 import AbandonedCartsPage from './pages/AbandonedCartsPage'
+import RazorpayPage from './pages/RazorpayPage'
 
 const isAdmin = () => !!localStorage.getItem('adminToken')
 
@@ -61,6 +62,7 @@ const App: React.FC = () => (
         <Route path="deals-of-day" element={<DealsOfDayPage />} />
         <Route path="purchase-order" element={<PurchaseOrderPage />} />
         <Route path="abandoned-carts" element={<AbandonedCartsPage />} />
+        <Route path="razorpay" element={<RazorpayPage />} />
       </Route>
     </Routes>
   </BrowserRouter>

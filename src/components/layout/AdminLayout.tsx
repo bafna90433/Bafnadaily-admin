@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Package, ShoppingBag, Tag, Users,
-  Image, Ticket, Settings, Menu, X, LogOut, Bell, ExternalLink, UserCheck, BarChart3, QrCode, Boxes, Flame, ClipboardList, ShoppingCart
+  Image, Ticket, Settings, Menu, X, LogOut, Bell, ExternalLink, UserCheck, BarChart3, QrCode, Boxes, Flame, ClipboardList, ShoppingCart, CreditCard
 } from 'lucide-react'
 
 const NAV = [
@@ -20,6 +20,7 @@ const NAV = [
   { to: '/deals-of-day', icon: Flame, label: 'Deals Of Day' },
   { to: '/purchase-order', icon: ClipboardList, label: 'Purchase Order' },
   { to: '/staff-reports', icon: QrCode, label: 'Staff Reports' },
+  { to: '/razorpay', icon: CreditCard, label: 'Razorpay' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
