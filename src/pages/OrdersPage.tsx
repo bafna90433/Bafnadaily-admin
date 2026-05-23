@@ -438,6 +438,11 @@ const OrdersPage: React.FC = () => {
   const [customBoxes, setCustomBoxes] = useState<Array<{ id: string; label: string; qty: string; l: string; b: string; h: string; wtKg: string; wtG: string }>>([])
   const [shipErr, setShipErr] = useState('')
   const [shipping, setShipping] = useState(false)
+  // NimbusPost courier selection
+  const [npCouriers, setNpCouriers] = useState<any[]>([])
+  const [npSelectedCourierId, setNpSelectedCourierId] = useState<any>(null)
+  const [npCourierStep, setNpCourierStep] = useState(false)
+  const [npCourierLoading, setNpCourierLoading] = useState(false)
 
   const openTracking = (order: any) => {
     if (!order.trackingNumber) return
@@ -562,6 +567,10 @@ const OrdersPage: React.FC = () => {
     setCvrDims({ l: '', b: '', h: '', wt: '' })
     setCustomBoxes([])
     setShipErr('')
+    setNpCouriers([])
+    setNpSelectedCourierId(null)
+    setNpCourierStep(false)
+    setNpCourierLoading(false)
     setShipOpen(true)
   }
 
@@ -590,6 +599,25 @@ const OrdersPage: React.FC = () => {
   const totalBoxQty = BOX_SIZES.reduce((s, k) => s + boxes[k].qty, 0) + customBoxesTotalQty
   const cvrWeightKg = (boxes['CVR'].qty * Number(cvrDims.wt || 0)) / 1000
   const totalBoxWeightKg = BOX_SIZES.reduce((s, k) => k === 'CVR' ? s : s + boxes[k].weight, 0) + cvrWeightKg + customBoxesTotalWeightKg
+
+  const fetchNpCouriers = async () => {
+    if (!shipOrder) return
+    if (totalBoxQty === 0) { setShipErr('Pehle boxes fill karo.'); return }
+    setShipErr('')
+    setNpCourierLoading(true)
+    try {
+      const res = await api.get(`/orders/${shipOrder._id}/nimbuspost-couriers`, {
+        params: { weight: totalBoxWeightKg }
+      })
+      setNpCouriers(res.data.couriers || [])
+      setNpCourierStep(true)
+      setNpSelectedCourierId(null)
+    } catch (e: any) {
+      setShipErr(e?.response?.data?.message || 'Couriers fetch karne me error')
+    } finally {
+      setNpCourierLoading(false)
+    }
+  }
 
   const submitShip = async () => {
     if (!shipOrder) return
@@ -625,6 +653,10 @@ const OrdersPage: React.FC = () => {
           customWeightKg: getCustomBoxWeightKg(cb),
         }))
       ]
+      // For NimbusPost, attach selected courier_id
+      if (shipProvider === 'nimbuspost' && npSelectedCourierId) {
+        payload.npCourierId = npSelectedCourierId
+      }
     } else {
       if (!manualTracking.trim()) { setShipErr('Tracking ID required.'); return }
       payload.trackingNumber = manualTracking.trim()
@@ -928,7 +960,7 @@ const OrdersPage: React.FC = () => {
                 <p className="text-sm font-semibold mb-2">Courier Provider</p>
                 <div className="flex gap-2">
                   {([['delhivery','📦 Delhivery'],['nimbuspost','🔴 NimbusPost'],['manual','✏️ Manual']] as const).map(([val, label]) => (
-                    <button key={val} type="button" onClick={() => setShipProvider(val)}
+                    <button key={val} type="button" onClick={() => { setShipProvider(val); setNpCourierStep(false); setNpCouriers([]); setNpSelectedCourierId(null); setShipErr(''); }}
                       className={`flex-1 text-xs py-2 px-3 rounded-xl border font-semibold transition-colors ${shipProvider===val?'bg-orange-500 text-white border-orange-500':'border-gray-200 hover:border-orange-300'}`}>
                       {label}
                     </button>
@@ -1091,6 +1123,43 @@ const OrdersPage: React.FC = () => {
                 </div>
               )}
 
+              {/* NimbusPost: Courier Selection Step */}
+              {shipProvider === 'nimbuspost' && npCourierStep && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">🚚 Courier Select Karo</p>
+                    <button type="button" onClick={() => { setNpCourierStep(false); setNpSelectedCourierId(null); }} className="text-xs text-gray-400 hover:text-gray-600 underline">← Back</button>
+                  </div>
+                  {npCouriers.length === 0 ? (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-700">⚠️ Koi courier available nahi mila is pincode ke liye.</div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                      {npCouriers.map((c: any) => {
+                        const courierId = c.courier_id || c.id
+                        const courierName = c.courier_name || c.name || 'Courier'
+                        const rate = c.rate || c.total_charges || c.charge || 0
+                        const etd = c.etd || c.estimated_delivery || ''
+                        const isSelected = npSelectedCourierId === courierId
+                        return (
+                          <button key={courierId} type="button" onClick={() => setNpSelectedCourierId(courierId)}
+                            className={`p-2.5 rounded-xl border-2 text-left transition-all ${isSelected ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300 bg-white'}`}>
+                            <div className={`text-xs font-bold truncate ${isSelected ? 'text-orange-700' : 'text-gray-700'}`}>{courierName}</div>
+                            <div className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-orange-600' : 'text-green-600'}`}>₹{Number(rate).toFixed(0)}</div>
+                            {etd && <div className="text-[10px] text-gray-400 mt-0.5">EDD: {etd}</div>}
+                            {isSelected && <div className="text-[10px] text-orange-500 font-bold mt-0.5">✓ Selected</div>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {npSelectedCourierId && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-2.5 text-xs text-orange-700 font-semibold">
+                      ✅ Selected: {npCouriers.find(c => (c.courier_id || c.id) === npSelectedCourierId)?.courier_name || 'Courier'} — Generate AWB karo ↓
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Manual: Tracking ID */}
               {shipProvider === 'manual' && (
                 <div className="space-y-3">
@@ -1111,13 +1180,25 @@ const OrdersPage: React.FC = () => {
 
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setShipOpen(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancel</button>
-                <button onClick={submitShip} disabled={shipping} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
-                  {shipping ? 'Processing...' : <><Truck size={15}/> {
-                    shipProvider === 'delhivery' ? (shipOrder.trackingNumber ? '🔄 Re-Generate AWB' : 'Generate AWB') :
-                    shipProvider === 'nimbuspost' ? (shipOrder.trackingNumber ? '🔄 Re-Generate AWB' : '🔴 Generate AWB') :
-                    'Mark Shipped'
-                  }</>}
-                </button>
+                {/* NimbusPost Step 1: Check Couriers button */}
+                {shipProvider === 'nimbuspost' && !npCourierStep ? (
+                  <button onClick={fetchNpCouriers} disabled={npCourierLoading || totalBoxQty === 0}
+                    className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+                    {npCourierLoading ? 'Checking...' : <><Truck size={15}/> Check Couriers →</>}
+                  </button>
+                ) : (
+                  <button
+                    onClick={submitShip}
+                    disabled={shipping || (shipProvider === 'nimbuspost' && npCourierStep && !npSelectedCourierId)}
+                    className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+                    {shipping ? 'Processing...' : <><Truck size={15}/> {
+                      shipProvider === 'nimbuspost'
+                        ? (shipOrder.trackingNumber ? '🔄 Re-Generate AWB' : '🔴 Generate AWB')
+                        : shipProvider === 'delhivery' ? (shipOrder.trackingNumber ? '🔄 Re-Generate AWB' : 'Generate AWB')
+                        : 'Mark Shipped'
+                    }</>}
+                  </button>
+                )}
               </div>
               <p className="text-xs text-gray-400 text-center">WhatsApp tracking message customer ko automatically jayega</p>
             </div>
