@@ -430,11 +430,12 @@ const OrdersPage: React.FC = () => {
   // Ship modal state
   const [shipOpen, setShipOpen] = useState(false)
   const [shipOrder, setShipOrder] = useState<any>(null)
-  const [shipProvider, setShipProvider] = useState<'delhivery'|'nimbuspost'|'shiprocket'|'manual'>('delhivery')
+  const [shipProvider, setShipProvider] = useState<'delhivery'|'nimbuspost'|'manual'>('delhivery')
   const [manualTracking, setManualTracking] = useState('')
   const [manualCourier, setManualCourier] = useState('')
   const [boxes, setBoxes] = useState<Record<BoxSize, { qty: number; weight: number }>>({ A28:{qty:0,weight:0}, A06:{qty:0,weight:0}, A08:{qty:0,weight:0}, A31:{qty:0,weight:0}, A18:{qty:0,weight:0}, CVR:{qty:0,weight:0} })
   const [cvrDims, setCvrDims] = useState({ l: '', b: '', h: '', wt: '' })
+  const [customBoxes, setCustomBoxes] = useState<Array<{ id: string; label: string; qty: string; l: string; b: string; h: string; wtKg: string; wtG: string }>>([])
   const [shipErr, setShipErr] = useState('')
   const [shipping, setShipping] = useState(false)
 
@@ -559,20 +560,36 @@ const OrdersPage: React.FC = () => {
     setManualCourier(order.courierName || '')
     setBoxes({ A28:{qty:0,weight:0}, A06:{qty:0,weight:0}, A08:{qty:0,weight:0}, A31:{qty:0,weight:0}, A18:{qty:0,weight:0}, CVR:{qty:0,weight:0} })
     setCvrDims({ l: '', b: '', h: '', wt: '' })
+    setCustomBoxes([])
     setShipErr('')
     setShipOpen(true)
   }
 
   const handleBoxQty = (size: BoxSize, val: string) => {
     const qty = Math.max(0, Number(val) || 0)
-    // CVR: weight comes from cvrDims.wt, not BOX_WEIGHTS_KG
     const weight = size === 'CVR' ? 0 : qty * BOX_WEIGHTS_KG[size]
     setBoxes(prev => ({ ...prev, [size]: { qty, weight } }))
   }
 
-  const totalBoxQty = BOX_SIZES.reduce((s, k) => s + boxes[k].qty, 0)
+  const addCustomBox = () => {
+    setCustomBoxes(prev => [...prev, { id: Date.now().toString(), label: '', qty: '1', l: '', b: '', h: '', wtKg: '', wtG: '' }])
+  }
+
+  const removeCustomBox = (id: string) => {
+    setCustomBoxes(prev => prev.filter(b => b.id !== id))
+  }
+
+  const updateCustomBox = (id: string, field: string, val: string) => {
+    setCustomBoxes(prev => prev.map(b => b.id === id ? { ...b, [field]: val } : b))
+  }
+
+  const getCustomBoxWeightKg = (b: typeof customBoxes[0]) => (Number(b.wtKg) || 0) + (Number(b.wtG) || 0) / 1000
+  const customBoxesTotalQty = customBoxes.reduce((s, b) => s + (Number(b.qty) || 0), 0)
+  const customBoxesTotalWeightKg = customBoxes.reduce((s, b) => s + (Number(b.qty) || 0) * getCustomBoxWeightKg(b), 0)
+
+  const totalBoxQty = BOX_SIZES.reduce((s, k) => s + boxes[k].qty, 0) + customBoxesTotalQty
   const cvrWeightKg = (boxes['CVR'].qty * Number(cvrDims.wt || 0)) / 1000
-  const totalBoxWeightKg = BOX_SIZES.reduce((s, k) => k === 'CVR' ? s : s + boxes[k].weight, 0) + cvrWeightKg
+  const totalBoxWeightKg = BOX_SIZES.reduce((s, k) => k === 'CVR' ? s : s + boxes[k].weight, 0) + cvrWeightKg + customBoxesTotalWeightKg
 
   const submitShip = async () => {
     if (!shipOrder) return
@@ -581,20 +598,37 @@ const OrdersPage: React.FC = () => {
     const isReship = !!shipOrder.trackingNumber
     const payload: any = { status: 'shipped', shipProvider, ...(isReship ? { forceReship: true } : {}) }
 
-    if (shipProvider === 'delhivery') {
+    if (shipProvider === 'delhivery' || shipProvider === 'nimbuspost') {
       if (totalBoxQty === 0) { setShipErr('Kam se kam 1 box add karo.'); return }
       if (boxes['CVR'].qty > 0) {
         if (!cvrDims.l || !cvrDims.b || !cvrDims.h) { setShipErr('Cover ke dimensions (L × B × H) daalo.'); return }
         if (!cvrDims.wt) { setShipErr('Cover ka weight daalo.'); return }
       }
-      payload.packingDetails = BOX_SIZES.filter(k => boxes[k].qty > 0).map(k => ({
-        boxType: k, quantity: boxes[k].qty, totalWeight: boxes[k].weight,
-        ...(k === 'CVR' ? { customDims: { l: Number(cvrDims.l), b: Number(cvrDims.b), h: Number(cvrDims.h) }, customWeightKg: Number(cvrDims.wt) / 1000 } : {})
-      }))
+      // Validate custom boxes
+      for (const cb of customBoxes) {
+        const name = cb.label || `Box ${customBoxes.indexOf(cb) + 1}`
+        if (!cb.l || !cb.b || !cb.h) { setShipErr(`"${name}" ke dimensions (L × B × H) daalo.`); return }
+        if (getCustomBoxWeightKg(cb) <= 0) { setShipErr(`"${name}" ka weight daalo (KG ya GRAM me).`); return }
+        if (!cb.qty || Number(cb.qty) < 1) { setShipErr(`"${name}" ki qty daalo.`); return }
+      }
+      payload.packingDetails = [
+        ...BOX_SIZES.filter(k => boxes[k].qty > 0).map(k => ({
+          boxType: k, quantity: boxes[k].qty, totalWeight: boxes[k].weight,
+          ...(k === 'CVR' ? { customDims: { l: Number(cvrDims.l), b: Number(cvrDims.b), h: Number(cvrDims.h) }, customWeightKg: Number(cvrDims.wt) / 1000 } : {})
+        })),
+        ...customBoxes.map(cb => ({
+          boxType: 'CUSTOM',
+          label: cb.label || 'Custom Box',
+          quantity: Number(cb.qty),
+          totalWeight: Number(cb.qty) * getCustomBoxWeightKg(cb),
+          customDims: { l: Number(cb.l), b: Number(cb.b), h: Number(cb.h) },
+          customWeightKg: getCustomBoxWeightKg(cb),
+        }))
+      ]
     } else {
       if (!manualTracking.trim()) { setShipErr('Tracking ID required.'); return }
       payload.trackingNumber = manualTracking.trim()
-      payload.courierName = manualCourier.trim() || (shipProvider === 'shiprocket' ? 'Shiprocket' : manualCourier)
+      payload.courierName = manualCourier.trim()
     }
 
     try {
@@ -893,7 +927,7 @@ const OrdersPage: React.FC = () => {
               <div>
                 <p className="text-sm font-semibold mb-2">Courier Provider</p>
                 <div className="flex gap-2">
-                  {([['delhivery','📦 Delhivery'],['nimbuspost','🔴 NimbusPost'],['shiprocket','🚀 Shiprocket'],['manual','✏️ Manual']] as const).map(([val, label]) => (
+                  {([['delhivery','📦 Delhivery'],['nimbuspost','🔴 NimbusPost'],['manual','✏️ Manual']] as const).map(([val, label]) => (
                     <button key={val} type="button" onClick={() => setShipProvider(val)}
                       className={`flex-1 text-xs py-2 px-3 rounded-xl border font-semibold transition-colors ${shipProvider===val?'bg-orange-500 text-white border-orange-500':'border-gray-200 hover:border-orange-300'}`}>
                       {label}
@@ -954,6 +988,100 @@ const OrdersPage: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                  {/* Custom Boxes */}
+                  {customBoxes.length > 0 && (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">📦 Custom Boxes</p>
+                      {customBoxes.map((cb, idx) => (
+                        <div key={cb.id} className="bg-purple-50 border border-purple-200 rounded-xl p-3 space-y-2">
+                          {/* Row 1: Box name + Remove */}
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <label className="text-[10px] text-purple-600 font-bold uppercase tracking-wide">Box Name</label>
+                              <input
+                                type="text"
+                                placeholder={`e.g. Small Box, Gift Box ${idx + 1}`}
+                                value={cb.label}
+                                onChange={e => updateCustomBox(cb.id, 'label', e.target.value)}
+                                className="input w-full py-1.5 text-sm mt-0.5 border-purple-200 focus:border-purple-400"
+                              />
+                            </div>
+                            <button onClick={() => removeCustomBox(cb.id)} className="mt-5 text-red-400 hover:text-red-600 text-xs font-bold px-2.5 py-1.5 hover:bg-red-50 border border-red-200 rounded-lg transition-colors">✕ Remove</button>
+                          </div>
+
+                          {/* Row 2: Qty + L × B × H */}
+                          <div className="flex gap-2">
+                            <div className="w-16 flex-shrink-0">
+                              <label className="text-[10px] text-gray-500 font-medium">Qty</label>
+                              <input type="number" min="1" placeholder="1" value={cb.qty}
+                                onChange={e => updateCustomBox(cb.id, 'qty', e.target.value)}
+                                className="input w-full py-1 text-sm mt-0.5"/>
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-[10px] text-gray-500 font-medium">Length (cm)</label>
+                              <input type="number" min="1" placeholder="L" value={cb.l}
+                                onChange={e => updateCustomBox(cb.id, 'l', e.target.value)}
+                                className="input w-full py-1 text-sm mt-0.5"/>
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-[10px] text-gray-500 font-medium">Breadth (cm)</label>
+                              <input type="number" min="1" placeholder="B" value={cb.b}
+                                onChange={e => updateCustomBox(cb.id, 'b', e.target.value)}
+                                className="input w-full py-1 text-sm mt-0.5"/>
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-[10px] text-gray-500 font-medium">Height (cm)</label>
+                              <input type="number" min="1" placeholder="H" value={cb.h}
+                                onChange={e => updateCustomBox(cb.id, 'h', e.target.value)}
+                                className="input w-full py-1 text-sm mt-0.5"/>
+                            </div>
+                          </div>
+
+                          {/* Row 3: Weight — separate KG + GRAM fields */}
+                          <div>
+                            <label className="text-[10px] text-gray-500 font-medium">Weight per piece</label>
+                            <div className="flex gap-2 mt-0.5">
+                              <div className="flex-1 relative">
+                                <input type="number" min="0" step="any" placeholder="0" value={cb.wtKg}
+                                  onChange={e => updateCustomBox(cb.id, 'wtKg', e.target.value)}
+                                  className="input w-full py-1.5 text-sm pr-10"/>
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600 pointer-events-none">KG</span>
+                              </div>
+                              <div className="flex items-center text-gray-400 text-sm font-bold flex-shrink-0">+</div>
+                              <div className="flex-1 relative">
+                                <input type="number" min="0" max="999" step="any" placeholder="0" value={cb.wtG}
+                                  onChange={e => updateCustomBox(cb.id, 'wtG', e.target.value)}
+                                  className="input w-full py-1.5 text-sm pr-14"/>
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600 pointer-events-none">GRAM</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Total preview */}
+                          {cb.qty && getCustomBoxWeightKg(cb) > 0 && (
+                            <div className="bg-purple-100 rounded-lg px-3 py-1.5 flex justify-between items-center">
+                              <span className="text-[10px] text-purple-600 font-semibold">
+                                {Number(cb.qty)} box{Number(cb.qty)>1?'es':''} × {cb.wtKg ? `${cb.wtKg}kg ` : ''}{cb.wtG ? `${cb.wtG}g` : ''} each
+                              </span>
+                              <span className="text-xs text-purple-700 font-bold">
+                                = {(Number(cb.qty) * getCustomBoxWeightKg(cb) * 1000).toLocaleString()}g &nbsp;({(Number(cb.qty) * getCustomBoxWeightKg(cb)).toFixed(3)} kg)
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Custom Box Button */}
+                  <button
+                    type="button"
+                    onClick={addCustomBox}
+                    className="mt-2 w-full py-2 border-2 border-dashed border-purple-300 text-purple-600 hover:border-purple-500 hover:bg-purple-50 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                  >
+                    ➕ Add Custom Box
+                  </button>
+
                   {totalBoxQty > 0 && (
                     <div className="mt-2 bg-orange-50 rounded-xl p-2.5 text-sm flex justify-between">
                       <span className="text-orange-700 font-medium">{totalBoxQty} box{totalBoxQty>1?'es':''}</span>
@@ -963,8 +1091,8 @@ const OrdersPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Shiprocket / Manual: Tracking ID */}
-              {(shipProvider === 'shiprocket' || shipProvider === 'manual') && (
+              {/* Manual: Tracking ID */}
+              {shipProvider === 'manual' && (
                 <div className="space-y-3">
                   <div>
                     <label className="text-sm font-semibold block mb-1">Tracking ID *</label>
@@ -974,7 +1102,7 @@ const OrdersPage: React.FC = () => {
                   <div>
                     <label className="text-sm font-semibold block mb-1">Courier Name</label>
                     <input type="text" value={manualCourier} onChange={e => setManualCourier(e.target.value)}
-                      placeholder={shipProvider === 'shiprocket' ? 'e.g. Delhivery, DTDC' : 'Courier name'} className="input w-full py-2 text-sm"/>
+                      placeholder="Courier name" className="input w-full py-2 text-sm"/>
                   </div>
                 </div>
               )}
