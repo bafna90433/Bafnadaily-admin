@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { RefreshCw, Search, CreditCard, CheckCircle, XCircle, Clock, Copy, ExternalLink } from 'lucide-react'
+import { RefreshCw, Search, CreditCard, Copy, ExternalLink, RotateCcw } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -29,6 +29,10 @@ const RazorpayPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterMethod, setFilterMethod] = useState('')
   const [selected, setSelected] = useState<any>(null)
+  const [refundModal, setRefundModal] = useState<any>(null)   // payment to refund
+  const [refundAmt, setRefundAmt] = useState('')
+  const [refundReason, setRefundReason] = useState('')
+  const [refunding, setRefunding] = useState(false)
   const COUNT = 25
 
   const fetchPayments = useCallback(async () => {
@@ -79,10 +83,31 @@ const RazorpayPage: React.FC = () => {
     toast.success(`${label} copied!`)
   }
 
-  const openOrder = (p: any) => {
-    if (p.orderId || p.orderNumber) {
-      window.open(`/orders`, '_blank')
+  const openRefund = (p: any) => {
+    setRefundModal(p)
+    setRefundAmt(String(p.amount))
+    setRefundReason('')
+  }
+
+  const submitRefund = async () => {
+    if (!refundModal) return
+    const amt = Number(refundAmt)
+    if (!amt || amt <= 0 || amt > refundModal.amount) {
+      toast.error(`Valid amount daalo (max ₹${refundModal.amount})`); return
     }
+    setRefunding(true)
+    try {
+      const res = await api.post('/admin/razorpay/refund', {
+        paymentId: refundModal.id,
+        amount: amt,
+        reason: refundReason || 'Admin initiated refund',
+      })
+      toast.success(res.data.message || 'Refund initiated!')
+      setRefundModal(null)
+      fetchPayments()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Refund failed')
+    } finally { setRefunding(false) }
   }
 
   return (
@@ -272,6 +297,12 @@ const RazorpayPage: React.FC = () => {
                         className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg" title="Copy Pay ID">
                         <Copy size={14}/>
                       </button>
+                      {p.status === 'captured' && (
+                        <button onClick={() => openRefund(p)}
+                          className="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg" title="Refund">
+                          <RotateCcw size={14}/>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -374,6 +405,106 @@ const RazorpayPage: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Refund Modal ── */}
+      {refundModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setRefundModal(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <RotateCcw size={20} className="text-purple-600"/>
+                </div>
+                <div>
+                  <h2 className="font-bold text-base">Initiate Refund</h2>
+                  <p className="text-xs text-gray-400 font-mono">{refundModal.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setRefundModal(null)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg">✕</button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Payment Info */}
+              <div className="bg-gray-50 rounded-xl p-3 text-sm flex justify-between items-center">
+                <div>
+                  <p className="font-semibold">{refundModal.customerName || 'Customer'}</p>
+                  <p className="text-xs text-gray-400">{refundModal.customerPhone}</p>
+                  {refundModal.orderNumber && <p className="text-xs text-orange-500 font-bold mt-0.5">#{refundModal.orderNumber}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-green-600">₹{Number(refundModal.amount).toLocaleString('en-IN')}</p>
+                  <p className="text-xs text-gray-400">paid amount</p>
+                </div>
+              </div>
+
+              {/* Amount Input */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">
+                  Refund Amount <span className="text-gray-400 font-normal normal-case">(max ₹{refundModal.amount})</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₹</span>
+                  <input
+                    type="number"
+                    value={refundAmt}
+                    onChange={e => setRefundAmt(e.target.value)}
+                    max={refundModal.amount}
+                    min={1}
+                    className="input pl-7 w-full"
+                    placeholder="Enter amount"
+                    autoFocus
+                  />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => setRefundAmt(String(refundModal.amount))}
+                    className="text-xs px-3 py-1 bg-purple-50 text-purple-600 rounded-lg font-semibold hover:bg-purple-100">
+                    Full Refund
+                  </button>
+                  <button onClick={() => setRefundAmt(String(Math.floor(refundModal.amount / 2)))}
+                    className="text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded-lg font-semibold hover:bg-gray-200">
+                    Half
+                  </button>
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Reason (Optional)</label>
+                <select value={refundReason} onChange={e => setRefundReason(e.target.value)} className="input w-full text-sm">
+                  <option value="">Select reason...</option>
+                  <option value="Customer requested refund">Customer requested refund</option>
+                  <option value="Order cancelled">Order cancelled</option>
+                  <option value="Duplicate payment">Duplicate payment</option>
+                  <option value="Product not available">Product not available</option>
+                  <option value="Wrong item ordered">Wrong item ordered</option>
+                  <option value="Admin initiated refund">Admin initiated refund</option>
+                </select>
+              </div>
+
+              {/* Warning */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                ⚠️ Refund initiate hone ke baad <strong>5-7 business days</strong> mein customer ke account mein credit hoga. Yeh action <strong>undo nahi hoga</strong>.
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setRefundModal(null)}
+                  className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button
+                  onClick={submitRefund}
+                  disabled={refunding || !refundAmt || Number(refundAmt) <= 0}
+                  className="flex-1 py-2.5 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+                  {refunding
+                    ? <><RefreshCw size={14} className="animate-spin"/> Processing...</>
+                    : <><RotateCcw size={14}/> Refund ₹{refundAmt || '0'}</>
+                  }
+                </button>
+              </div>
             </div>
           </div>
         </div>
