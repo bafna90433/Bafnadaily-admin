@@ -83,6 +83,16 @@ const SettingsPage: React.FC = () => {
     } catch { toast.error('Upload failed') } finally { setUploading(false) }
   }
 
+  const uploadFavicon = async (file: File) => {
+    setUploading(true)
+    try {
+      const fd = new FormData(); fd.append('favicon', file)
+      const res = await api.post('/settings/favicon', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setSettings((s: any) => ({ ...s, favicon: res.data.url }))
+      toast.success('Favicon updated! ✅ Google me 1-2 din me dikhega')
+    } catch { toast.error('Upload failed') } finally { setUploading(false) }
+  }
+
   const shiprocketAuth = async () => {
     setSrAuthing(true)
     try {
@@ -130,23 +140,47 @@ const SettingsPage: React.FC = () => {
               <div className="card p-6 space-y-5">
                 <h3 className="font-bold text-lg border-b pb-3">Site Identity</h3>
 
-                {/* Logo */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Site Logo</label>
-                  <div className="flex items-center gap-5">
-                    <div className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden bg-gray-50">
-                      {settings.siteLogo
-                        ? <img src={settings.siteLogo} alt="Logo" className="w-full h-full object-contain p-2"/>
-                        : <span className="text-3xl font-black text-primary">R</span>
-                      }
+                {/* Logo + Favicon */}
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Site Logo */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Site Logo</label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden bg-gray-50 flex-shrink-0">
+                        {settings.siteLogo
+                          ? <img src={settings.siteLogo} alt="Logo" className="w-full h-full object-contain p-2"/>
+                          : <span className="text-3xl font-black text-primary">R</span>
+                        }
+                      </div>
+                      <div>
+                        <label className={`flex items-center gap-2 btn btn-secondary cursor-pointer text-xs ${uploading ? 'opacity-50' : ''}`}>
+                          {uploading ? <Loader2 size={13} className="animate-spin"/> : <Upload size={13}/>}
+                          {uploading ? 'Uploading…' : 'Upload Logo'}
+                          <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadLogo(e.target.files[0])} disabled={uploading}/>
+                        </label>
+                        <p className="text-xs text-gray-400 mt-1">PNG / SVG</p>
+                      </div>
                     </div>
-                    <div>
-                      <label className={`flex items-center gap-2 btn btn-secondary cursor-pointer ${uploading ? 'opacity-50' : ''}`}>
-                        {uploading ? <Loader2 size={15} className="animate-spin"/> : <Upload size={15}/>}
-                        {uploading ? 'Uploading…' : 'Upload Logo'}
-                        <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadLogo(e.target.files[0])} disabled={uploading}/>
-                      </label>
-                      <p className="text-xs text-gray-400 mt-1.5">PNG / SVG recommended. Uploaded to ImageKit.</p>
+                  </div>
+                  {/* Favicon */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Favicon <span className="text-blue-500 font-normal normal-case">(Google search icon)</span></label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 border-2 border-dashed border-blue-200 rounded-2xl flex items-center justify-center overflow-hidden bg-blue-50 flex-shrink-0">
+                        {settings.favicon
+                          ? <img src={settings.favicon} alt="Favicon" className="w-12 h-12 object-contain"/>
+                          : <span className="text-3xl">🌐</span>
+                        }
+                      </div>
+                      <div>
+                        <label className={`flex items-center gap-2 btn btn-secondary cursor-pointer text-xs border-blue-300 text-blue-700 ${uploading ? 'opacity-50' : ''}`}>
+                          {uploading ? <Loader2 size={13} className="animate-spin"/> : <Upload size={13}/>}
+                          {uploading ? 'Uploading…' : 'Upload Favicon'}
+                          <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadFavicon(e.target.files[0])} disabled={uploading}/>
+                        </label>
+                        <p className="text-xs text-gray-400 mt-1">PNG 32×32 ideal</p>
+                        {settings.favicon && <p className="text-xs text-green-600 mt-0.5">✅ Set</p>}
+                      </div>
                     </div>
                   </div>
                 </div>
