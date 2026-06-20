@@ -9,7 +9,7 @@ const downloadExcelFormat = (orders: any[], filename: string) => {
   orders.forEach(order => {
     const orderDt = new Date(order.createdAt)
     const orderDate = orderDt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    const customerName = order.user?.name || '—'
+    const customerName = order.user?.name || order.shippingAddress?.name || '-'
     const shopName = order.shippingAddress?.name || '—'
     const city = order.shippingAddress?.city || '—'
     const state = order.shippingAddress?.state || '—'
@@ -734,7 +734,7 @@ const OrdersPage: React.FC = () => {
                     />
                   </td>
                   <td className="td"><p className="font-bold text-sm">#{o.orderNumber}</p></td>
-                  <td className="td"><p className="font-medium text-sm">{o.user?.name||'—'}</p><p className="text-xs text-gray-400">{o.user?.phone}</p></td>
+                  <td className="td"><p className="font-medium text-sm">{o.user?.name || o.shippingAddress?.name || '—'}</p><p className="text-xs text-gray-400">{o.user?.phone || o.shippingAddress?.phone}</p></td>
                   <td className="td text-gray-600">{o.items?.length||0} item(s)</td>
                   <td className="td font-bold">₹{o.total}</td>
                   <td className="td">
@@ -834,7 +834,7 @@ const OrdersPage: React.FC = () => {
             </div>
             <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-400 text-xs mb-1">Customer</p><p className="font-bold">{selected.user?.name}</p><p className="text-gray-500 text-xs">{selected.user?.phone}</p></div>
+                <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-400 text-xs mb-1">Customer</p><p className="font-bold">{selected.user?.name || selected.shippingAddress?.name || 'Walk-In Customer'}</p><p className="text-gray-500 text-xs">{selected.user?.phone || selected.shippingAddress?.phone || 'No phone'}</p></div>
                 <div className="bg-gray-50 rounded-xl p-3"><p className="text-gray-400 text-xs mb-1">Payment</p><p className="font-bold text-lg">₹{selected.total}</p><p className="uppercase text-orange-500 text-xs font-bold">{selected.paymentMethod}</p>{selected.paymentMethod==='cod' && selected.advanceAmount>0 && <p className="text-green-600 text-xs font-semibold mt-0.5">Advance ₹{selected.advanceAmount} paid ✓</p>}{selected.paymentMethod==='cod' && <p className="text-red-600 text-xs font-semibold">Collect: ₹{Math.max(0,selected.total-(selected.advanceAmount||0))}</p>}</div>
               </div>
               {selected.trackingNumber && (

@@ -77,7 +77,7 @@ const DashboardPage: React.FC = () => {
           <div className="divide-y divide-gray-50">
             {recentOrders.slice(0,7).map((o:any) => (
               <div key={o._id} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
-                <div><p className="text-sm font-semibold">#{o.orderNumber}</p><p className="text-xs text-gray-400">{o.user?.name} · ₹{o.total}</p></div>
+                <div><p className="text-sm font-semibold">#{o.orderNumber}</p><p className="text-xs text-gray-400">{o.user?.name || o.shippingAddress?.name || 'Walk-In Customer'} · ₹{o.total}</p></div>
                 <span className={`badge ${SC[o.orderStatus]||'bg-gray-100 text-gray-600'} capitalize`}>{o.orderStatus}</span>
               </div>
             ))}
