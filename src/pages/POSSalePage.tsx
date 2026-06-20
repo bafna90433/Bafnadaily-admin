@@ -56,6 +56,8 @@ const POSSalePage: React.FC = () => {
   const [showInvoice, setShowInvoice] = useState(false)
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 20
   const searchRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -81,6 +83,7 @@ const POSSalePage: React.FC = () => {
     if (!q.trim()) {
       setProducts(allProducts)
       setSearching(false)
+      setPage(1)
       return
     }
     // Client-side filter first (instant)
@@ -92,6 +95,7 @@ const POSSalePage: React.FC = () => {
       (p.category?.name && p.category.name.toLowerCase().includes(q_lower))
     )
     setProducts(filtered)
+    setPage(1)
   }, [allProducts])
 
   useEffect(() => {
@@ -131,7 +135,7 @@ const POSSalePage: React.FC = () => {
     setCart(prev => prev.map(i => i.product._id === id ? { ...i, salePrice: price } : i))
   }
 
-  const subtotal = cart.reduce((sum, i) => sum + i.salePrice * i.quantity, 0)
+
 
   const placeOrder = async () => {
     if (cart.length === 0) { toast.error('Add products to cart first'); return }
@@ -292,11 +296,44 @@ const POSSalePage: React.FC = () => {
   }
 
   const totalItems = cart.reduce((s, i) => s + i.quantity, 0)
+  const subtotal = cart.reduce((sum, i) => sum + i.salePrice * i.quantity, 0)
+
+  // Pagination
+  const totalPages = Math.ceil(products.length / PAGE_SIZE)
+  const pagedProducts = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null
+    const win = 5
+    let start = Math.max(1, page - Math.floor(win / 2))
+    let end = Math.min(totalPages, start + win - 1)
+    if (end - start < win - 1) start = Math.max(1, end - win + 1)
+    return (
+      <div className="flex items-center justify-center gap-1 pt-4 pb-2">
+        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+          className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+          ← Prev
+        </button>
+        {start > 1 && <><button onClick={() => setPage(1)} className="w-8 h-8 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors">1</button>{start > 2 && <span className="text-slate-400 text-xs px-1">…</span>}</>}
+        {Array.from({ length: end - start + 1 }, (_, i) => start + i).map(p => (
+          <button key={p} onClick={() => setPage(p)}
+            className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${page === p ? 'bg-pink-500 text-white shadow-sm' : 'hover:bg-slate-100 text-slate-600'}`}>
+            {p}
+          </button>
+        ))}
+        {end < totalPages && <>{end < totalPages - 1 && <span className="text-slate-400 text-xs px-1">…</span>}<button onClick={() => setPage(totalPages)} className="w-8 h-8 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors">{totalPages}</button></>}
+        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+          className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+          Next →
+        </button>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-pink-50/30">
+    <div className="bg-gradient-to-br from-slate-50 via-white to-pink-50/30">
       {/* Header */}
-      <div className="bg-white border-b border-slate-100 shadow-sm px-6 py-4 flex items-center justify-between">
+      <div className="bg-white border-b border-slate-100 shadow-sm px-6 py-4 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl flex items-center justify-center shadow-lg shadow-pink-200">
             <Receipt size={20} className="text-white" />
@@ -316,36 +353,63 @@ const POSSalePage: React.FC = () => {
         )}
       </div>
 
-      <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="flex gap-0 h-[calc(100vh-130px)]">
 
-        {/* LEFT: Product search & listing */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Search */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              {searching && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-pink-400" size={16} />}
-              <input
-                ref={searchRef}
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name, SKU, barcode..."
-                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all font-medium"
-                autoFocus
-              />
-              {search && (
-                <button onClick={() => { setSearch(''); setProducts([]) }} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  <X size={16} />
-                </button>
+        {/* LEFT: Product search & listing — scrollable */}
+        <div className="flex-1 overflow-y-auto flex flex-col">
+          {/* Search — sticky at top of scroll container */}
+          <div className="sticky top-0 z-20 bg-slate-50 px-5 pt-4 pb-2">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-md p-3">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by name, SKU, barcode..."
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-300 transition-all font-medium"
+                  autoFocus
+                />
+                {search && (
+                  <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              {products.length > 0 && (
+                <p className="text-[10px] text-slate-400 mt-1.5 ml-1">
+                  {products.length} products{search ? ` matching "${search}"` : ''} — showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, products.length)}
+                </p>
               )}
             </div>
           </div>
 
-          {/* Products grid */}
-          {products.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {products.map(p => {
+          {/* Scrollable products area */}
+          <div className="flex-1 px-5 pb-5 space-y-4 pt-2">
+
+          {/* Loading */}
+          {initialLoading && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
+              <Loader2 size={36} className="mx-auto text-pink-400 animate-spin mb-3" />
+              <p className="text-slate-400 font-medium text-sm">Loading products...</p>
+            </div>
+          )}
+
+          {/* No results */}
+          {!initialLoading && products.length === 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
+              <Package size={40} className="mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-400 font-medium">
+                {search ? `No products found for "${search}"` : 'No products available'}
+              </p>
+            </div>
+          )}
+
+          {/* Products grid — current page */}
+          {!initialLoading && pagedProducts.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+              {pagedProducts.map(p => {
                 const inCart = cart.find(i => i.product._id === p._id)
                 return (
                   <button
@@ -376,7 +440,7 @@ const POSSalePage: React.FC = () => {
                         p.stock === 0 ? 'bg-red-100 text-red-600' :
                         p.stock < 5 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'
                       }`}>
-                        {p.stock === 0 ? 'Out' : `${p.stock} left`}
+                        {p.stock === 0 ? 'Out' : `${p.stock}`}
                       </span>
                     </div>
                     {p.sku && <p className="text-[9px] text-slate-400 font-mono mt-0.5">{p.sku}</p>}
@@ -386,50 +450,42 @@ const POSSalePage: React.FC = () => {
             </div>
           )}
 
-          {search && !searching && products.length === 0 && !initialLoading && (
-            <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
-              <Package size={40} className="mx-auto text-slate-300 mb-3" />
-              <p className="text-slate-400 font-medium">No products found for "{search}"</p>
-            </div>
-          )}
-
-          {initialLoading && (
-            <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
-              <Loader2 size={36} className="mx-auto text-pink-400 animate-spin mb-3" />
-              <p className="text-slate-400 font-medium text-sm">Loading products...</p>
-            </div>
-          )}
+          {/* Pagination */}
+          {renderPagination()}
+          </div>{/* end scrollable products area */}
         </div>
 
-        {/* RIGHT: Cart & Billing */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* RIGHT: Sticky full-height panel — Customer + Cart + Payment + Bill */}
+        <div className="w-[360px] flex-shrink-0 bg-white border-l border-slate-100 shadow-xl flex flex-col" style={{height: 'calc(100vh - 130px)', position: 'sticky', top: 0}}>
 
-          {/* Customer Info */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
-            <h3 className="text-sm font-black text-slate-700 flex items-center gap-2">
-              <User size={15} className="text-slate-400" /> Customer (Optional)
+          {/* Customer Info — always visible at top */}
+          <div className="p-4 border-b border-slate-200 bg-gradient-to-br from-slate-50 to-white flex-shrink-0">
+            <h3 className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5 mb-3">
+              <User size={13} className="text-pink-500" /> Customer (Optional)
             </h3>
-            <input
-              type="text"
-              placeholder="Customer name"
-              value={customerName}
-              onChange={e => setCustomerName(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all"
-            />
-            <input
-              type="tel"
-              placeholder="Phone number"
-              value={customerPhone}
-              onChange={e => setCustomerPhone(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all"
-            />
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="Customer name"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all"
+              />
+              <input
+                type="tel"
+                placeholder="Phone number"
+                value={customerPhone}
+                onChange={e => setCustomerPhone(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all"
+              />
+            </div>
           </div>
 
-          {/* Cart Items */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/60">
+          {/* Cart Items — scrollable middle section */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-white sticky top-0 z-10">
               <h3 className="text-sm font-black text-slate-700 flex items-center gap-2">
-                <ShoppingCart size={15} className="text-pink-500" />
+                <ShoppingCart size={14} className="text-pink-500" />
                 Cart
                 {totalItems > 0 && (
                   <span className="bg-pink-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{totalItems}</span>
@@ -437,62 +493,54 @@ const POSSalePage: React.FC = () => {
               </h3>
               {cart.length > 0 && (
                 <button onClick={() => setCart([])} className="text-xs text-red-400 hover:text-red-600 font-bold flex items-center gap-1">
-                  <Trash2 size={12} /> Clear
+                  <Trash2 size={11} /> Clear
                 </button>
               )}
             </div>
 
             {cart.length === 0 ? (
-              <div className="py-10 text-center text-slate-400 text-sm">
-                <ShoppingCart size={32} className="mx-auto mb-2 text-slate-300" />
-                Cart is empty — search and add products
+              <div className="py-10 text-center text-slate-400 text-xs px-4">
+                <ShoppingCart size={28} className="mx-auto mb-2 text-slate-300" />
+                Cart is empty — click products to add
               </div>
             ) : (
-              <div className="divide-y divide-slate-50 max-h-[320px] overflow-y-auto">
+              <div className="divide-y divide-slate-50">
                 {cart.map(item => (
-                  <div key={item.product._id} className="flex gap-3 p-3">
+                  <div key={item.product._id} className="flex gap-2.5 p-3">
                     <img
                       src={item.product.images?.[0]?.url}
                       alt={item.product.name}
-                      className="w-12 h-12 rounded-xl object-cover bg-slate-100 flex-shrink-0"
-                      onError={e => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/48?text=?' }}
+                      className="w-11 h-11 rounded-xl object-cover bg-slate-100 flex-shrink-0"
+                      onError={e => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/44?text=?' }}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-slate-800 leading-tight truncate">{item.product.name}</p>
                       {item.product.sku && <p className="text-[9px] text-slate-400 font-mono">{item.product.sku}</p>}
-
-                      {/* Price edit */}
                       <div className="flex items-center gap-1 mt-1">
                         <span className="text-[9px] text-slate-400">₹</span>
                         <input
                           type="number"
                           value={item.salePrice}
                           onChange={e => updatePrice(item.product._id, Number(e.target.value) || 0)}
-                          className="w-20 text-xs font-black text-pink-600 bg-pink-50 border border-pink-100 rounded-lg px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-pink-300"
+                          className="w-18 text-xs font-black text-pink-600 bg-pink-50 border border-pink-100 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-pink-300 w-16"
                         />
-                        <span className="text-[9px] text-slate-400 line-through ml-1">₹{item.product.mrp}</span>
+                        {item.product.mrp !== item.product.price && <span className="text-[9px] text-slate-400 line-through">₹{item.product.mrp}</span>}
                       </div>
-
-                      {/* Qty controls */}
                       <div className="flex items-center gap-1 mt-1.5">
-                        <button
-                          onClick={() => updateQty(item.product._id, item.quantity - 1)}
-                          className="w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
-                        >
-                          <Minus size={11} />
+                        <button onClick={() => updateQty(item.product._id, item.quantity - 1)}
+                          className="w-5 h-5 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded transition-colors">
+                          <Minus size={10} />
                         </button>
-                        <span className="text-sm font-black text-slate-800 w-6 text-center">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQty(item.product._id, item.quantity + 1)}
-                          className="w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
-                        >
-                          <Plus size={11} />
+                        <span className="text-sm font-black text-slate-800 w-5 text-center">{item.quantity}</span>
+                        <button onClick={() => updateQty(item.product._id, item.quantity + 1)}
+                          className="w-5 h-5 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded transition-colors">
+                          <Plus size={10} />
                         </button>
                         <span className="ml-auto text-xs font-black text-slate-700">
                           ₹{(item.salePrice * item.quantity).toLocaleString('en-IN')}
                         </span>
-                        <button onClick={() => removeFromCart(item.product._id)} className="p-1 text-slate-300 hover:text-red-500 transition-colors ml-1">
-                          <X size={13} />
+                        <button onClick={() => removeFromCart(item.product._id)} className="p-0.5 text-slate-300 hover:text-red-500 transition-colors ml-1">
+                          <X size={12} />
                         </button>
                       </div>
                     </div>
@@ -502,81 +550,54 @@ const POSSalePage: React.FC = () => {
             )}
           </div>
 
-          {/* Payment Method */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
-            <h3 className="text-sm font-black text-slate-700">Payment Method</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setPaymentMethod('cash')}
-                className={`flex items-center gap-2 justify-center py-3 rounded-xl font-bold text-sm border-2 transition-all ${
-                  paymentMethod === 'cash'
-                    ? 'bg-green-50 border-green-400 text-green-700 shadow-sm'
-                    : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <Banknote size={18} className={paymentMethod === 'cash' ? 'text-green-600' : 'text-slate-400'} />
-                Cash
-              </button>
-              <button
-                onClick={() => setPaymentMethod('online')}
-                className={`flex items-center gap-2 justify-center py-3 rounded-xl font-bold text-sm border-2 transition-all ${
-                  paymentMethod === 'online'
-                    ? 'bg-blue-50 border-blue-400 text-blue-700 shadow-sm'
-                    : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <CreditCard size={18} className={paymentMethod === 'online' ? 'text-blue-600' : 'text-slate-400'} />
-                Online / UPI
-              </button>
+          {/* Payment + Billing — sticky bottom */}
+          <div className="flex-shrink-0 border-t border-slate-100 bg-white">
+            {/* Payment Method */}
+            <div className="p-3 border-b border-slate-100">
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <button onClick={() => setPaymentMethod('cash')}
+                  className={`flex items-center gap-1.5 justify-center py-2.5 rounded-xl font-bold text-xs border-2 transition-all ${
+                    paymentMethod === 'cash' ? 'bg-green-50 border-green-400 text-green-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }`}>
+                  <Banknote size={15} className={paymentMethod === 'cash' ? 'text-green-600' : 'text-slate-400'} />
+                  Cash
+                </button>
+                <button onClick={() => setPaymentMethod('online')}
+                  className={`flex items-center gap-1.5 justify-center py-2.5 rounded-xl font-bold text-xs border-2 transition-all ${
+                    paymentMethod === 'online' ? 'bg-blue-50 border-blue-400 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }`}>
+                  <CreditCard size={15} className={paymentMethod === 'online' ? 'text-blue-600' : 'text-slate-400'} />
+                  Online / UPI
+                </button>
+              </div>
+              <input
+                type="text"
+                placeholder="Add a note (optional)"
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all"
+              />
             </div>
 
-            {/* Note */}
-            <input
-              type="text"
-              placeholder="Add a note (optional)"
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all"
-            />
+            {/* Grand Total */}
+            <div className="px-4 py-3 bg-gradient-to-r from-slate-800 to-slate-900">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-slate-400 text-xs">{totalItems} items</span>
+                <span className="text-white text-xl font-black">₹{subtotal.toLocaleString('en-IN')}</span>
+              </div>
+              <button
+                onClick={placeOrder}
+                disabled={cart.length === 0 || placing}
+                className="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-pink-900/40 transition-all active:scale-95"
+              >
+                {placing ? (
+                  <><Loader2 size={17} className="animate-spin" /> Processing...</>
+                ) : (
+                  <><CheckCircle2 size={17} /> Create Sale & Print Invoice</>
+                )}
+              </button>
+            </div>
           </div>
-
-          {/* Bill Summary */}
-          {cart.length > 0 && (
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white shadow-xl">
-              <div className="space-y-2 mb-4">
-                {cart.map(item => (
-                  <div key={item.product._id} className="flex justify-between text-xs text-slate-400">
-                    <span className="truncate max-w-[180px]">{item.product.name} <span className="text-slate-500">×{item.quantity}</span></span>
-                    <span>₹{(item.salePrice * item.quantity).toLocaleString('en-IN')}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-slate-700 pt-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300 text-sm font-medium">Total ({totalItems} items)</span>
-                  <span className="text-2xl font-black text-white">₹{subtotal.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${paymentMethod === 'cash' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                    {paymentMethod === 'cash' ? '💵 Cash' : '💳 Online/UPI'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Place Order Button */}
-          <button
-            onClick={placeOrder}
-            disabled={cart.length === 0 || placing}
-            className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-lg shadow-pink-200 hover:shadow-pink-300 transition-all active:scale-95"
-          >
-            {placing ? (
-              <><Loader2 size={20} className="animate-spin" /> Processing...</>
-            ) : (
-              <><CheckCircle2 size={20} /> Create Sale & Print Invoice</>
-            )}
-          </button>
         </div>
       </div>
 
@@ -584,7 +605,6 @@ const POSSalePage: React.FC = () => {
       {showInvoice && placedOrder && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-pink-50 to-rose-50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -600,15 +620,12 @@ const POSSalePage: React.FC = () => {
               </button>
             </div>
 
-            {/* Order Summary */}
             <div className="overflow-y-auto flex-1 p-6 space-y-4">
-              {/* Alert */}
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2 items-start">
                 <AlertCircle size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-amber-700 font-medium">Stock has been automatically deducted for all items.</p>
               </div>
 
-              {/* Customer + Payment */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 rounded-xl p-3">
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide mb-1">Customer</p>
@@ -627,7 +644,6 @@ const POSSalePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Items */}
               <div className="space-y-2">
                 {placedOrder.items.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
@@ -644,25 +660,19 @@ const POSSalePage: React.FC = () => {
                 ))}
               </div>
 
-              {/* Total */}
               <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-xl p-4 flex items-center justify-between text-white">
                 <span className="font-bold text-sm opacity-80">Grand Total</span>
                 <span className="text-2xl font-black">₹{placedOrder.total.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
-            {/* Footer Actions */}
             <div className="p-4 border-t border-slate-100 flex gap-3">
-              <button
-                onClick={() => setShowInvoice(false)}
-                className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
+              <button onClick={() => setShowInvoice(false)}
+                className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
                 New Sale
               </button>
-              <button
-                onClick={printInvoice}
-                className="flex-1 py-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 hover:from-pink-600 hover:to-rose-700 transition-all shadow-lg shadow-pink-200"
-              >
+              <button onClick={printInvoice}
+                className="flex-1 py-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-xl text-sm font-black flex items-center justify-center gap-2 hover:from-pink-600 hover:to-rose-700 transition-all shadow-lg shadow-pink-200">
                 <Printer size={16} /> Print Invoice
               </button>
             </div>
