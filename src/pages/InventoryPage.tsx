@@ -63,8 +63,15 @@ const InventoryPage: React.FC = () => {
   const [bulkQty, setBulkQty] = useState(1);
   const [bulkLoading, setBulkLoading] = useState(false);
 
+  const [page, setPage] = useState(1);
+
   useEffect(() => { fetchCategories(); }, []);
   useEffect(() => { fetchProducts(); }, [search]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, catFilter, stockFilter]);
 
   // Client-side filter for cat + stock
   useEffect(() => {
@@ -84,7 +91,7 @@ const InventoryPage: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const res = await api.get(`/products?limit=200&search=${search}`);
+      const res = await api.get(`/products?limit=10000&admin=true&search=${search}`);
       setAllProducts(res.data.products || []);
     } catch {
       toast.error('Failed to load inventory');
@@ -208,8 +215,19 @@ const InventoryPage: React.FC = () => {
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   };
 
+  const currentPagedProducts = products.slice((page - 1) * 20, page * 20);
+
   const toggleSelectAll = () => {
-    setSelected(prev => prev.size === products.length ? new Set() : new Set(products.map(p => p._id)));
+    setSelected(prev => {
+      const allSelected = currentPagedProducts.every(p => prev.has(p._id));
+      const next = new Set(prev);
+      if (allSelected) {
+        currentPagedProducts.forEach(p => next.delete(p._id));
+      } else {
+        currentPagedProducts.forEach(p => next.add(p._id));
+      }
+      return next;
+    });
   };
 
   const printLabel = (product: Product, qty: number, cols: 1 | 2) => {
@@ -298,7 +316,7 @@ const InventoryPage: React.FC = () => {
           <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-black tracking-widest border-b border-slate-100">
             <tr>
               <th className="px-4 py-4">
-                <input type="checkbox" checked={products.length > 0 && selected.size === products.length} onChange={toggleSelectAll} className="rounded" />
+                <input type="checkbox" checked={currentPagedProducts.length > 0 && currentPagedProducts.every(p => selected.has(p._id))} onChange={toggleSelectAll} className="rounded" />
               </th>
               <th className="px-4 py-4">Product</th>
               <th className="px-4 py-4">SKU / Barcode</th>
@@ -313,7 +331,7 @@ const InventoryPage: React.FC = () => {
               <tr><td colSpan={7} className="py-20 text-center"><Loader2 className="animate-spin inline text-primary mr-2" />Loading...</td></tr>
             ) : products.length === 0 ? (
               <tr><td colSpan={7} className="py-20 text-center text-slate-400">No products found.</td></tr>
-            ) : products.map(p => {
+            ) : currentPagedProducts.map(p => {
               const isReorderAlert = p.reorderLevel && p.reorderLevel > 0 && p.stock <= p.reorderLevel;
               return (
                 <tr key={p._id} className={`hover:bg-slate-50/50 transition-colors group ${selected.has(p._id) ? 'bg-primary/3' : ''}`}>
@@ -423,6 +441,30 @@ const InventoryPage: React.FC = () => {
             })}
           </tbody>
         </table>
+
+        {/* Pagination */}
+        {products.length > 20 && (() => {
+          const totalPages = Math.ceil(products.length / 20)
+          const win = 5
+          let start = Math.max(1, page - Math.floor(win / 2))
+          let end = Math.min(totalPages, start + win - 1)
+          if (end - start < win - 1) start = Math.max(1, end - win + 1)
+          return (
+            <div className="p-4 border-t flex justify-center items-center gap-1.5 bg-slate-50/50">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">← Prev</button>
+              {start > 1 && <><button onClick={() => setPage(1)} className="w-9 h-9 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">1</button>{start > 2 && <span className="text-gray-400 px-1">…</span>}</>}
+              {Array.from({ length: end - start + 1 }, (_, i) => start + i).map(p => (
+                <button key={p} onClick={() => setPage(p)}
+                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${page === p ? 'bg-primary text-white font-bold' : 'hover:bg-gray-100 text-slate-600'}`}>{p}</button>
+              ))}
+              {end < totalPages && <>{end < totalPages - 1 && <span className="text-gray-400 px-1">…</span>}<button onClick={() => setPage(totalPages)} className="w-9 h-9 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors">{totalPages}</button></>}
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">Next →</button>
+              <span className="text-xs text-gray-400 ml-2">Page {page} of {totalPages} ({products.length} total)</span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* History + Stock Adjust Modal */}
