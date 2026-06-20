@@ -54,25 +54,49 @@ const POSSalePage: React.FC = () => {
   const [placing, setPlacing] = useState(false)
   const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null)
   const [showInvoice, setShowInvoice] = useState(false)
+  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [initialLoading, setInitialLoading] = useState(true)
   const searchRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const searchProducts = useCallback(async (q: string) => {
-    if (!q.trim()) { setProducts([]); return }
-    setSearching(true)
-    try {
-      const res = await api.get(`/products?search=${encodeURIComponent(q)}&limit=12&admin=true`)
-      setProducts(res.data.products || [])
-    } catch {
-      toast.error('Product search failed')
-    } finally {
-      setSearching(false)
+  // Load all products on page mount
+  useEffect(() => {
+    const loadAll = async () => {
+      setInitialLoading(true)
+      try {
+        const res = await api.get('/products?limit=200&admin=true')
+        const prods = res.data.products || []
+        setAllProducts(prods)
+        setProducts(prods)
+      } catch {
+        toast.error('Failed to load products')
+      } finally {
+        setInitialLoading(false)
+      }
     }
+    loadAll()
   }, [])
+
+  const searchProducts = useCallback(async (q: string) => {
+    if (!q.trim()) {
+      setProducts(allProducts)
+      setSearching(false)
+      return
+    }
+    // Client-side filter first (instant)
+    const q_lower = q.toLowerCase()
+    const filtered = allProducts.filter(p =>
+      p.name.toLowerCase().includes(q_lower) ||
+      (p.sku && p.sku.toLowerCase().includes(q_lower)) ||
+      (p.barcode && p.barcode.toLowerCase().includes(q_lower)) ||
+      (p.category?.name && p.category.name.toLowerCase().includes(q_lower))
+    )
+    setProducts(filtered)
+  }, [allProducts])
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => searchProducts(search), 350)
+    debounceRef.current = setTimeout(() => searchProducts(search), 250)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [search, searchProducts])
 
@@ -362,17 +386,17 @@ const POSSalePage: React.FC = () => {
             </div>
           )}
 
-          {search && !searching && products.length === 0 && (
+          {search && !searching && products.length === 0 && !initialLoading && (
             <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
               <Package size={40} className="mx-auto text-slate-300 mb-3" />
               <p className="text-slate-400 font-medium">No products found for "{search}"</p>
             </div>
           )}
 
-          {!search && (
-            <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
-              <Search size={40} className="mx-auto text-slate-300 mb-3" />
-              <p className="text-slate-400 font-medium">Type a product name, SKU, or barcode to search</p>
+          {initialLoading && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
+              <Loader2 size={36} className="mx-auto text-pink-400 animate-spin mb-3" />
+              <p className="text-slate-400 font-medium text-sm">Loading products...</p>
             </div>
           )}
         </div>
