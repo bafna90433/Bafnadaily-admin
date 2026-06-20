@@ -66,7 +66,7 @@ const POSSalePage: React.FC = () => {
     const loadAll = async () => {
       setInitialLoading(true)
       try {
-        const res = await api.get('/products?limit=200&admin=true')
+        const res = await api.get('/products?limit=10000&admin=true')
         const prods = res.data.products || []
         setAllProducts(prods)
         setProducts(prods)
@@ -355,8 +355,8 @@ const POSSalePage: React.FC = () => {
 
       <div className="flex gap-0 h-[calc(100vh-130px)]">
 
-        {/* LEFT: Product search & listing — scrollable */}
-        <div className="flex-1 overflow-y-auto flex flex-col">
+        {/* LEFT: Product search & listing */}
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* Search — sticky at top of scroll container */}
           <div className="sticky top-0 z-20 bg-slate-50 px-5 pt-4 pb-2">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-md p-3">
@@ -386,7 +386,7 @@ const POSSalePage: React.FC = () => {
           </div>
 
           {/* Scrollable products area */}
-          <div className="flex-1 px-5 pb-5 space-y-4 pt-2">
+          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-2 space-y-4">
 
           {/* Loading */}
           {initialLoading && (
