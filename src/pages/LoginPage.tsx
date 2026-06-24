@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Lock, Mail, Eye, EyeOff } from 'lucide-react'
 import api from '../utils/api'
@@ -10,6 +10,40 @@ const LoginPage: React.FC = () => {
   const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sso = params.get('sso');
+    if (sso) {
+      try {
+        const decoded = atob(sso);
+        const [u, p] = decoded.split(':');
+        if (u && p) {
+          setEmail(u);
+          setPassword(p);
+          
+          const performAutoLogin = async () => {
+            setLoading(true);
+            try {
+              const res = await api.post('/admin/auth/login', { email: u, password: p });
+              window.history.replaceState({}, document.title, window.location.pathname);
+              localStorage.setItem('adminToken', res.data.token);
+              localStorage.setItem('adminUser', JSON.stringify(res.data.admin));
+              toast.success(`Welcome, ${res.data.admin.name}! 🎉`);
+              navigate('/');
+            } catch (err: any) {
+              toast.error(err.response?.data?.message || 'Auto-login failed');
+            } finally {
+              setLoading(false);
+            }
+          };
+          performAutoLogin();
+        }
+      } catch (e) {
+        console.error('SSO decoding failed', e);
+      }
+    }
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
