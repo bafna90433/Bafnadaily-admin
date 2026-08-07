@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Eye, ChevronDown, Truck, X, FileText, Trash2, BookOpen } from 'lucide-react'
+import { Eye, ChevronDown, Truck, X, FileText, Trash2, BookOpen, RefreshCw, Search } from 'lucide-react'
 
 const downloadExcelFormat = (orders: any[], filename: string) => {
   const rows: any[][] = [
@@ -56,9 +56,14 @@ const printInvoice = (order: any, settings: any) => {
   const logo = settings?.siteLogo || ''
 
   const getGstRate = (it: any) => {
-    if (it.gstRate && it.gstRate > 0) return it.gstRate
+    if (typeof it.gstRate === 'number' && it.gstRate > 0) return it.gstRate
+    if (it.product && typeof it.product.gstRate === 'number' && it.product.gstRate > 0) return it.product.gstRate
     const name = (it.name || '').toLowerCase()
     const sku = (it.sku || '').toUpperCase()
+    const cat = (it.product?.category?.name || '').toLowerCase()
+    if (cat.includes('plush') || cat.includes('toy') || name.includes('plush') || name.includes('teddy') || name.includes('soft toy') || name.includes('cushion')) {
+      return 5
+    }
     if (sku.startsWith('KEY') || name.includes('keychain') || name.includes('ring')) {
       return 18
     }
@@ -444,6 +449,126 @@ const OrdersPage: React.FC = () => {
   const [npCourierStep, setNpCourierStep] = useState(false)
   const [npCourierLoading, setNpCourierLoading] = useState(false)
 
+  // ── Order Group Unlock State ──
+  const [orderUnlocked, setOrderUnlocked] = useState(false)
+  const [unlockedPassword, setUnlockedPassword] = useState('')
+  const [unlockInput, setUnlockInput] = useState('')
+  const [unlocking, setUnlocking] = useState(false)
+
+  // Quantity Inline Edit State
+  const [editingQtyIndex, setEditingQtyIndex] = useState<number | null>(null)
+  const [qtyInput, setQtyInput] = useState<string>('')
+
+  // Replace Item State
+  const [replaceModal, setReplaceModal] = useState<{ open: boolean; orderId: string; itemIndex: number; oldItem: any }>({ open: false, orderId: '', itemIndex: -1, oldItem: null })
+  const [productSearch, setProductSearch] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+  const [replaceQty, setReplaceQty] = useState(1)
+  const [customPrice, setCustomPrice] = useState<string>('')
+  const [replaceSubmitting, setReplaceSubmitting] = useState(false)
+
+  const handleUnlockOrder = async () => {
+    if (!unlockInput.trim()) { toast.error('Password daalein'); return }
+    setUnlocking(true)
+    try {
+      const res = await api.post('/orders/verify-edit-password', { password: unlockInput.trim() })
+      toast.success(res.data.message || 'Order editing unlocked!')
+      setOrderUnlocked(true)
+      setUnlockedPassword(unlockInput.trim())
+      setUnlockInput('')
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Incorrect password ❌')
+    } finally {
+      setUnlocking(false)
+    }
+  }
+
+  const openOrderDetail = (order: any) => {
+    setSelected(order)
+    setOrderUnlocked(false)
+    setUnlockedPassword('')
+    setUnlockInput('')
+  }
+
+  const handleRemoveItem = async (orderId: string, itemIndex: number, itemName: string) => {
+    if (!orderUnlocked || !unlockedPassword) { toast.error('Order edit unlocked nahi hai.'); return }
+    if (!window.confirm(`Kya aap "${itemName}" ko order se remove karna chahte hain?`)) return
+    try {
+      const res = await api.delete(`/orders/${orderId}/items/${itemIndex}`, { data: { password: unlockedPassword } })
+      toast.success(res.data.message || 'Item removed successfully!')
+      setSelected(res.data.order)
+      fetchOrders()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Item remove karne me failure')
+    }
+  }
+
+  const handleSaveQty = async (orderId: string, itemIndex: number) => {
+    if (!orderUnlocked || !unlockedPassword) { toast.error('Order edit unlocked nahi hai.'); return }
+    const q = Number(qtyInput)
+    if (isNaN(q) || q <= 0) { toast.error('Valid quantity (>= 1) daalein'); return }
+    try {
+      const res = await api.put(`/orders/${orderId}/items/${itemIndex}/quantity`, { quantity: q, password: unlockedPassword })
+      toast.success(res.data.message || 'Quantity updated!')
+      setSelected(res.data.order)
+      fetchOrders()
+      setEditingQtyIndex(null)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Quantity update error')
+    }
+  }
+
+  const handleOpenReplaceModal = (orderId: string, itemIndex: number, item: any) => {
+    if (!orderUnlocked || !unlockedPassword) { toast.error('Order edit unlocked nahi hai.'); return }
+    setReplaceModal({ open: true, orderId, itemIndex, oldItem: item })
+    setProductSearch('')
+    setSearchResults([])
+    setSelectedProduct(null)
+    setReplaceQty(item.quantity || 1)
+    setCustomPrice('')
+  }
+
+  const searchProductsForReplace = async (query: string) => {
+    setProductSearch(query)
+    if (!query.trim()) { setSearchResults([]); return }
+    setSearchLoading(true)
+    try {
+      const res = await api.get(`/products?search=${encodeURIComponent(query)}&limit=10&admin=true`)
+      setSearchResults(res.data.products || [])
+    } catch {
+      toast.error('Products search nahi ho paye')
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const handleConfirmReplace = async () => {
+    if (!selectedProduct) { toast.error('Kripya naya product select karein'); return }
+    if (!orderUnlocked || !unlockedPassword) { toast.error('Order edit unlocked nahi hai.'); return }
+    setReplaceSubmitting(true)
+    try {
+      const payload: any = {
+        newProductId: selectedProduct._id,
+        quantity: replaceQty,
+        password: unlockedPassword,
+      }
+      if (customPrice !== '' && !isNaN(Number(customPrice))) {
+        payload.customPrice = Number(customPrice)
+      }
+      const res = await api.put(`/orders/${replaceModal.orderId}/items/${replaceModal.itemIndex}/replace`, payload)
+      toast.success(res.data.message || 'Item replace ho gaya!')
+      setSelected(res.data.order)
+      fetchOrders()
+      setReplaceModal({ open: false, orderId: '', itemIndex: -1, oldItem: null })
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Item replace karne me error')
+    } finally {
+      setReplaceSubmitting(false)
+    }
+  }
+
   const openTracking = (order: any) => {
     if (!order.trackingNumber) return
     const courier = (order.courierName || '').toLowerCase()
@@ -780,7 +905,7 @@ const OrdersPage: React.FC = () => {
                   <td className="td text-gray-400 text-xs">{new Date(o.createdAt).toLocaleDateString('en-IN')}</td>
                   <td className="td">
                     <div className="flex gap-1 flex-wrap">
-                      <button onClick={() => setSelected(o)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="View"><Eye size={15}/></button>
+                      <button onClick={() => openOrderDetail(o)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="View"><Eye size={15}/></button>
                       <button onClick={() => openShipModal(o)} className="p-1.5 text-orange-500 hover:bg-orange-50 rounded-lg" title="Ship"><Truck size={15}/></button>
                       {o.paymentStatus === 'pending' && o.paymentMethod !== 'cod' && (
                         <button onClick={() => markPaymentPaid(o._id)} className="px-2 py-1 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg" title="Mark payment received">₹ Paid</button>
@@ -846,11 +971,103 @@ const OrdersPage: React.FC = () => {
               <div><p className="font-bold text-sm mb-2">Delivery Address</p>
                 <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-600"><p>{selected.shippingAddress?.name} · {selected.shippingAddress?.phone}</p><p>{selected.shippingAddress?.addressLine1}{selected.shippingAddress?.addressLine2?`, ${selected.shippingAddress.addressLine2}`:''}</p><p>{selected.shippingAddress?.city}, {selected.shippingAddress?.state} – {selected.shippingAddress?.pincode}</p></div>
               </div>
-              <div><p className="font-bold text-sm mb-2">Items</p>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-bold text-sm">Items ({selected.items?.length || 0})</p>
+                  {orderUnlocked && (
+                    <button onClick={() => { setOrderUnlocked(false); setUnlockedPassword('') }} className="text-[11px] text-gray-500 hover:text-gray-700 underline font-medium">
+                      🔒 Lock Editing
+                    </button>
+                  )}
+                </div>
+
+                {/* Group Unlock Bar */}
+                {!orderUnlocked ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="text-xs font-bold text-amber-800 flex items-center gap-1">🔐 Unlock Order Editing</p>
+                      <span className="text-[10px] text-amber-600">Enter password ONCE to edit any item</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="password"
+                        value={unlockInput}
+                        onChange={e => setUnlockInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleUnlockOrder()}
+                        placeholder="Enter Order Edit Password…"
+                        className="input text-xs py-1.5 px-3 flex-1 border-amber-300 focus:border-amber-500 bg-white"
+                      />
+                      <button
+                        onClick={handleUnlockOrder}
+                        disabled={!unlockInput || unlocking}
+                        className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-colors flex-shrink-0"
+                      >
+                        {unlocking ? 'Unlocking…' : 'Unlock 🔓'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-xs text-green-700 font-semibold mb-3 flex items-center justify-between">
+                    <span>🔓 Editing Unlocked — Edit qty, replace, or remove any item below freely.</span>
+                  </div>
+                )}
+
                 <div className="space-y-2">{selected.items?.map((item:any,i:number) => (
-                  <div key={i} className="flex gap-3 bg-gray-50 rounded-xl p-3">
+                  <div key={i} className="flex gap-3 bg-gray-50 rounded-xl p-3 items-center">
                     <img src={item.image||`https://placehold.co/48x48/FCE4EC/E91E63?text=P`} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" alt=""/>
-                    <div className="text-sm flex-1"><p className="font-semibold line-clamp-1">{item.name}</p><p className="text-gray-400 text-xs">{item.variant||''}</p><p className="text-gray-600 mt-0.5">₹{item.price} × {item.quantity} = <strong>₹{item.price*item.quantity}</strong></p></div>
+                    <div className="text-sm flex-1 min-w-0">
+                      <p className="font-semibold line-clamp-1">{item.name}</p>
+                      <p className="text-gray-400 text-xs">{item.variant||''}</p>
+
+                      {orderUnlocked && editingQtyIndex === i ? (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="text-xs text-gray-500">₹{item.price} ×</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={qtyInput}
+                            onChange={e => setQtyInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleSaveQty(selected._id, i); if (e.key === 'Escape') setEditingQtyIndex(null); }}
+                            className="w-14 text-xs border border-blue-400 rounded px-1.5 py-0.5 focus:outline-none font-bold bg-white"
+                            autoFocus
+                          />
+                          <button onClick={() => handleSaveQty(selected._id, i)} className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded font-bold">✓</button>
+                          <button onClick={() => setEditingQtyIndex(null)} className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold">✕</button>
+                        </div>
+                      ) : (
+                        <p className="text-gray-600 mt-0.5 flex items-center gap-1">
+                          ₹{item.price} × <strong>{item.quantity}</strong> = <strong>₹{item.price*item.quantity}</strong>
+                          {orderUnlocked && (
+                            <button
+                              onClick={() => { setEditingQtyIndex(i); setQtyInput(String(item.quantity)); }}
+                              className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold underline ml-1"
+                              title="Edit item quantity"
+                            >
+                              edit qty
+                            </button>
+                          )}
+                        </p>
+                      )}
+                    </div>
+
+                    {orderUnlocked && (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => handleOpenReplaceModal(selected._id, i, item)}
+                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold flex items-center gap-1 border border-amber-200 transition-colors"
+                          title="Replace item with another product"
+                        >
+                          <RefreshCw size={12}/> Replace
+                        </button>
+                        <button
+                          onClick={() => handleRemoveItem(selected._id, i, item.name)}
+                          className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-semibold border border-red-200 transition-colors"
+                          title="Remove item from order"
+                        >
+                          <Trash2 size={13}/>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}</div>
               </div>
@@ -1268,6 +1485,122 @@ const OrdersPage: React.FC = () => {
                   {bulkDeleteLoading ? 'Deleting…' : <><Trash2 size={15}/> Delete {selectedIds.size} Orders</>}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Replace Item Modal ── */}
+      {replaceModal.open && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setReplaceModal({ open: false, orderId: '', itemIndex: -1, oldItem: null })}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b flex items-center justify-between bg-white">
+              <div>
+                <h2 className="font-bold text-base flex items-center gap-2">
+                  <RefreshCw size={16} className="text-amber-500"/> Item Replace Karein
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">Original: <strong>{replaceModal.oldItem?.name}</strong> (₹{replaceModal.oldItem?.price})</p>
+              </div>
+              <button onClick={() => setReplaceModal({ open: false, orderId: '', itemIndex: -1, oldItem: null })} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={18}/></button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto flex-1 text-sm">
+              {/* Search Input */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Replacement Product Khojein (Name / SKU)</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={e => searchProductsForReplace(e.target.value)}
+                    placeholder="Search product by name or SKU..."
+                    className="input w-full pl-9 py-2 text-sm"
+                    autoFocus
+                  />
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                </div>
+              </div>
+
+              {/* Search Results List */}
+              {searchLoading && <p className="text-xs text-gray-400 py-2">Searching products...</p>}
+              {searchResults.length > 0 && (
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl divide-y">
+                  {searchResults.map(p => (
+                    <div
+                      key={p._id}
+                      onClick={() => {
+                        setSelectedProduct(p)
+                        setCustomPrice(String(p.price))
+                      }}
+                      className={`p-2.5 flex items-center gap-3 cursor-pointer hover:bg-amber-50 transition-colors ${selectedProduct?._id === p._id ? 'bg-amber-100 border-l-4 border-amber-500' : ''}`}
+                    >
+                      <img src={p.images?.[0]?.url || 'https://placehold.co/40x40/FCE4EC/E91E63?text=P'} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" alt=""/>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-xs text-gray-800 truncate">{p.name}</p>
+                        <p className="text-[11px] text-gray-400">SKU: {p.sku || 'N/A'} · Stock: <span className={p.stock > 0 ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>{p.stock}</span></p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-bold text-xs text-primary">₹{p.price}</p>
+                        {p.mrp > p.price && <p className="text-[10px] text-gray-400 line-through">₹{p.mrp}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Selected Replacement Product Summary */}
+              {selectedProduct && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3.5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <img src={selectedProduct.images?.[0]?.url || ''} className="w-12 h-12 rounded-lg object-cover" alt=""/>
+                    <div>
+                      <p className="text-xs text-green-700 font-bold">Selected Replacement:</p>
+                      <p className="font-semibold text-sm text-gray-900">{selectedProduct.name}</p>
+                      <p className="text-xs text-gray-500">Default Price: ₹{selectedProduct.price}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-green-200">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Quantity</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={replaceQty}
+                        onChange={e => setReplaceQty(Math.max(1, Number(e.target.value) || 1))}
+                        className="input w-full py-1.5 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Price per item (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={customPrice}
+                        onChange={e => setCustomPrice(e.target.value)}
+                        className="input w-full py-1.5 text-xs"
+                        placeholder={`₹${selectedProduct.price}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t bg-gray-50 flex gap-2 justify-end">
+              <button
+                onClick={() => setReplaceModal({ open: false, orderId: '', itemIndex: -1, oldItem: null })}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReplace}
+                disabled={!selectedProduct || replaceSubmitting}
+                className="px-5 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 disabled:opacity-50 flex items-center gap-1.5 transition-colors"
+              >
+                {replaceSubmitting ? 'Replacing...' : '✓ Confirm Replace'}
+              </button>
             </div>
           </div>
         </div>

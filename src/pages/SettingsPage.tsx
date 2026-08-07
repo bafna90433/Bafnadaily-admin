@@ -45,6 +45,7 @@ const SettingsPage: React.FC = () => {
   const [showRzSecret, setShowRzSecret] = useState(false)
   const [showSRPwd, setShowSRPwd] = useState(false)
   const [showDeletePwd, setShowDeletePwd] = useState(false)
+  const [showEditPwd, setShowEditPwd] = useState(false)
   const [srAuthing, setSrAuthing] = useState(false)
 
   useEffect(() => {
@@ -603,6 +604,37 @@ const SettingsPage: React.FC = () => {
                 )}
                 {settings.deletePassword && (
                   <p className="text-xs text-green-700 mt-2 font-semibold">✅ Password set. Admins must enter it to delete orders.</p>
+                )}
+              </div>
+
+              {/* ── Order Edit / Modify Password ── */}
+              <div className="p-5 rounded-2xl border-2 border-amber-200 bg-amber-50">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
+                    <Lock size={18} className="text-white"/>
+                  </div>
+                  <div>
+                    <p className="font-bold text-base text-amber-800">✏️ Order Edit / Item Modify Password</p>
+                    <p className="text-xs text-amber-600 mt-0.5">Admin must enter this password to remove, replace, or edit quantity of items in an order</p>
+                  </div>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showEditPwd ? 'text' : 'password'}
+                    value={settings.editPassword || ''}
+                    onChange={e => set('editPassword', e.target.value)}
+                    className="input pr-10 border-amber-200 focus:border-amber-400"
+                    placeholder="Set an order edit password…"
+                  />
+                  <button type="button" onClick={() => setShowEditPwd(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    {showEditPwd ? <EyeOff size={16}/> : <Eye size={16}/>}
+                  </button>
+                </div>
+                {!settings.editPassword && (
+                  <p className="text-xs text-amber-700 mt-2 font-semibold">⚠️ No edit password set. Order item edits will use Delete Password (or require setting this password).</p>
+                )}
+                {settings.editPassword && (
+                  <p className="text-xs text-green-700 mt-2 font-semibold">✅ Edit Password set. Admins must enter it to edit, replace, or remove order items.</p>
                 )}
               </div>
             </div>
