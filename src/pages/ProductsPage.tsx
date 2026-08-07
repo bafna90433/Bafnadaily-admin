@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Search, Package, X, Check, Loader2, Eye, EyeOff, Copy, CheckCheck, ExternalLink } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Package, X, Check, Loader2, Eye, EyeOff, Copy, CheckCheck, ExternalLink, BookOpen, Download, FileText, Upload } from 'lucide-react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 
@@ -136,6 +136,127 @@ const ProductsPage: React.FC = () => {
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
   const [showBulkPwd, setShowBulkPwd] = useState(false)
 
+  // ── Site Settings & Catalog Modal State ──
+  const [siteSettings, setSiteSettings] = useState<any>(null)
+  const [catalogModalOpen, setCatalogModalOpen] = useState(false)
+  const [catFilter, setCatFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('active')
+  const [stockFilter, setStockFilter] = useState('all')
+  const [priceOption, setPriceOption] = useState('both')
+  const [layoutGrid, setLayoutGrid] = useState('3')
+  const [catalogLoading, setCatalogLoading] = useState(false)
+
+  // ── Excel Import / Export Modal State ──
+  const [excelModalOpen, setExcelModalOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [parsedData, setParsedData] = useState<any[]>([])
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<any>(null)
+
+  const handleExportFullExcel = async () => {
+    try {
+      const res = await api.get('/products?limit=5000&admin=true')
+      const list = res.data.products || []
+      if (!list.length) { toast.error('Koi products nahi mile'); return }
+
+      const rows = [
+        ['Product ID', 'SKU', 'Barcode', 'Product Name', 'Category', 'Stock', 'Selling Price (₹)', 'MRP (₹)', 'GST Rate (%)', 'Status']
+      ]
+
+      list.forEach((pr: any) => {
+        rows.push([
+          pr._id,
+          pr.sku || '',
+          pr.barcode || '',
+          pr.name || '',
+          pr.category?.name || 'Uncategorized',
+          pr.stock || 0,
+          pr.price || 0,
+          pr.mrp || pr.price || 0,
+          pr.gstRate || 0,
+          pr.isActive ? 'Active' : 'Inactive'
+        ])
+      })
+
+      const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n')
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `Bulk_Products_Update_Sheet_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      toast.success('Products Excel file downloaded!')
+    } catch {
+      toast.error('Excel export failed')
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportFile(file)
+    setImportResult(null)
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = event.target?.result as string
+      if (!text) return
+      const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '')
+      if (lines.length < 2) { toast.error('CSV file me data nahi mila'); return }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase())
+
+      const items: any[] = []
+      for (let i = 1; i < lines.length; i++) {
+        const matches = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',')
+        const row = matches.map(cell => cell.trim().replace(/^"|"$/g, '').replace(/""/g, '"'))
+
+        const item: any = {}
+        headers.forEach((h, idx) => {
+          const val = row[idx] !== undefined ? row[idx] : ''
+          if (h.includes('id') || h === '_id') item._id = val
+          else if (h === 'sku') item.sku = val
+          else if (h.includes('barcode') || h === 'bc') item.barcode = val
+          else if (h.includes('name') || h.includes('title')) item.name = val
+          else if (h.includes('stock')) item.stock = val
+          else if (h.includes('selling') || h.includes('wholesale') || h.includes('price') || h.includes('rate')) {
+            if (!h.includes('mrp')) item.price = val
+          }
+          else if (h.includes('mrp')) item.mrp = val
+          else if (h.includes('gst')) item.gstRate = val
+          else if (h.includes('status') || h.includes('active')) item.isActive = val
+        })
+
+        if (item._id || item.sku || item.barcode || item.name) {
+          items.push(item)
+        }
+      }
+
+      setParsedData(items)
+      toast.success(`${items.length} products read from CSV file!`)
+    }
+    reader.readAsText(file)
+  }
+
+  const handleStartBulkImport = async () => {
+    if (!parsedData || parsedData.length === 0) {
+      toast.error('Import karne ke liye koi product data nahi hai.')
+      return
+    }
+
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const res = await api.post('/products/bulk-update', { products: parsedData })
+      toast.success(res.data.message || 'Bulk update complete!')
+      setImportResult(res.data)
+      fetchProducts()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Bulk update error')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   // Debounce search 400ms
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 400)
@@ -155,7 +276,234 @@ const ProductsPage: React.FC = () => {
   useEffect(() => {
     fetchProducts()
     api.get('/categories/all?admin=true').then(r => setCategories(r.data.categories)).catch(() => {})
+    api.get('/settings').then(r => setSiteSettings(r.data.settings)).catch(() => {})
   }, [fetchProducts])
+
+  const fetchFilteredProductsForCatalog = async () => {
+    setCatalogLoading(true)
+    try {
+      const p = new URLSearchParams({ limit: '5000', admin: 'true' })
+      if (catFilter !== 'all') p.set('category', catFilter)
+      const res = await api.get(`/products?${p}`)
+      let list = res.data.products || []
+
+      if (statusFilter === 'active') {
+        list = list.filter((pr: any) => pr.isActive)
+      }
+      if (stockFilter === 'instock') {
+        list = list.filter((pr: any) => (pr.stock || 0) > 0)
+      }
+
+      return list
+    } catch {
+      toast.error('Products load nahi ho paaye')
+      return []
+    } finally {
+      setCatalogLoading(false)
+    }
+  }
+
+  const generatePdfCatalog = async () => {
+    const list = await fetchFilteredProductsForCatalog()
+    if (!list || list.length === 0) {
+      toast.error('Is filter ke saath koi products nahi mile.')
+      return
+    }
+
+    const win = window.open('', '_blank')
+    if (!win) return
+
+    const siteName = siteSettings?.siteName || 'Bafnadaily Store'
+    const logo = siteSettings?.siteLogo || ''
+    const phone = siteSettings?.contactPhone || ''
+    const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    const catObj = categories.find(c => c._id === catFilter)
+    const categoryTitle = catFilter === 'all' ? 'All Categories Full Store Catalog' : `Category: ${catObj?.name || 'Selected Category'}`
+
+    // Group products by category
+    const grouped: Record<string, any[]> = {}
+    list.forEach((pr: any) => {
+      const cName = pr.category?.name || 'Uncategorized'
+      if (!grouped[cName]) grouped[cName] = []
+      grouped[cName].push(pr)
+    })
+
+    const groupKeys = Object.keys(grouped).sort()
+    const cols = Number(layoutGrid) || 3
+
+    const cardsHtml = groupKeys.map(cName => {
+      const prods = grouped[cName]
+      const prodsHtml = prods.map((pr: any) => {
+        const imgUrl = pr.images?.[0]?.url || `https://placehold.co/240x240/FCE4EC/E91E63?text=${encodeURIComponent(pr.name.substring(0, 8))}`
+        const inStock = (pr.stock || 0) > 0
+
+        return `
+          <div class="card">
+            <div class="stock-tag ${inStock ? 'in' : 'out'}">${inStock ? `In Stock: ${pr.stock} Pcs` : 'Out of Stock'}</div>
+            <div class="img-box">
+              <img src="${imgUrl}" alt="${pr.name}" onerror="this.onerror=null;this.src='https://placehold.co/240x240/FCE4EC/E91E63?text=P';"/>
+            </div>
+            <div class="info">
+              <div class="cat-badge">${cName}</div>
+              <div class="title">${pr.name}</div>
+              <div class="sku-row">
+                ${pr.sku ? `<span class="sku">SKU: ${pr.sku}</span>` : ''}
+                ${pr.barcode ? `<span class="barcode">BC: ${pr.barcode}</span>` : ''}
+              </div>
+              ${priceOption !== 'none' ? `
+                <div class="price-box">
+                  <div>
+                    <span class="price-lbl">Selling Price</span>
+                    <div class="price-val" style="color:#e91e63;font-size:14px;font-weight:800">₹${Number(pr.price || 0).toLocaleString('en-IN')}</div>
+                  </div>
+                  ${priceOption === 'both' && pr.mrp && pr.mrp > pr.price ? `
+                  <div style="text-align:right">
+                    <span class="price-lbl">MRP</span>
+                    <div class="price-val" style="text-decoration:line-through;color:#94a3b8;font-size:12px">₹${Number(pr.mrp).toLocaleString('en-IN')}</div>
+                  </div>
+                  ` : ''}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `
+      }).join('')
+
+      return `
+        <div class="cat-section">
+          <div class="cat-header">
+            📁 Category: <span>${cName}</span> (${prods.length} Products)
+          </div>
+          <div class="grid cols-${cols}">
+            ${prodsHtml}
+          </div>
+        </div>
+      `
+    }).join('')
+
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/>
+    <title>${siteName} - ${categoryTitle}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293b;padding:24px;font-size:13px}
+      .wrap{max-width:1120px;margin:0 auto}
+      .head{display:flex;justify-content:space-between;align-items:center;padding:20px;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:20px;border-bottom:3px solid #e91e63}
+      .brand{display:flex;align-items:center;gap:14px}
+      .brand img{height:48px;object-fit:contain}
+      .logo-box{width:46px;height:46px;background:#e91e63;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:20px}
+      .brand-name{font-size:20px;font-weight:800;letter-spacing:-0.5px;color:#0f172a}
+      .brand-sub{font-size:11px;color:#64748b;margin-top:2px}
+      .inv-right{text-align:right}
+      .inv-right h1{font-size:20px;font-weight:900;color:#e91e63;letter-spacing:0.5px}
+      .inv-right p{font-size:11px;color:#64748b;margin-top:2px}
+      
+      .cat-section{margin-bottom:28px}
+      .cat-header{font-size:15px;font-weight:800;color:#0f172a;background:#fff;padding:10px 16px;border-radius:8px;border-left:4px solid #e91e63;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+      .cat-header span{color:#e91e63}
+
+      .grid{display:grid;gap:16px}
+      .grid.cols-3{grid-template-columns:repeat(3, 1fr)}
+      .grid.cols-4{grid-template-columns:repeat(4, 1fr)}
+
+      .card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:12px;display:flex;flex-direction:column;position:relative;box-shadow:0 1px 3px rgba(0,0,0,0.02);break-inside:avoid;page-break-inside:avoid}
+      .img-box{width:100%;height:160px;background:#f8fafc;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:10px;border:1px solid #f1f5f9}
+      .img-box img{max-width:100%;max-height:100%;object-fit:contain}
+      .info{flex:1;display:flex;flex-direction:column}
+      .cat-badge{font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:3px}
+      .title{font-size:12px;font-weight:700;color:#1e293b;margin-bottom:6px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:32px}
+      .sku-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+      .sku{font-size:9px;font-weight:700;color:#6366f1;background:#e0e7ff;padding:2px 6px;border-radius:4px;font-family:monospace}
+      .barcode{font-size:9px;font-weight:700;color:#059669;background:#d1fae5;padding:2px 6px;border-radius:4px;font-family:monospace}
+      
+      .price-box{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:6px;border-top:1px dashed #e2e8f0}
+      .price-lbl{font-size:9px;color:#94a3b8;display:block;text-transform:uppercase;font-weight:600}
+      .price-val{font-size:12px;font-weight:600;color:#0f172a}
+      
+      .stock-tag{position:absolute;top:8px;right:8px;font-size:9px;font-weight:800;padding:3px 8px;border-radius:12px;z-index:10}
+      .stock-tag.in{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+      .stock-tag.out{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+      
+      .foot{text-align:center;margin-top:30px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8}
+      .no-print{text-align:center;margin-bottom:20px;display:flex;justify-content:center;gap:10px}
+      .pbtn{padding:10px 24px;background:#e91e63;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 6px rgba(233,30,99,0.2)}
+      .ebtn{padding:10px 20px;background:#64748b;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+      
+      @media print{
+        body{background:#fff;padding:0}
+        .head{box-shadow:none;border:none;padding:10px 0;border-bottom:3px solid #e91e63;border-radius:0}
+        .card{box-shadow:none;border:1px solid #cbd5e1}
+        .no-print{display:none}
+      }
+    </style>
+    </head><body><div class="wrap">
+    <div class="no-print">
+      <button class="pbtn" onclick="window.print()">🖨️ Print / Save as PDF Catalog</button>
+      <button class="ebtn" onclick="window.close()">✕ Close Window</button>
+    </div>
+    <div class="head">
+      <div class="brand">
+        ${logo ? `<img src="${logo}" alt="Logo"/>` : `<div class="logo-box">B</div>`}
+        <div>
+          <div class="brand-name">${siteName}</div>
+          <div class="brand-sub">Official Product Catalog · ${phone ? `Contact: ${phone}` : ''}</div>
+        </div>
+      </div>
+      <div class="inv-right">
+        <h1>PRODUCT CATALOG</h1>
+        <p>${categoryTitle}</p>
+        <p>Total Products: <strong>${list.length}</strong> | Date: <strong>${dateStr}</strong></p>
+      </div>
+    </div>
+    ${cardsHtml}
+    <div class="foot">
+      <p style="font-size:12px;font-weight:600;color:#475569;margin-bottom:3px">Thank you for browsing! — ${siteName}</p>
+      <p>For orders & inquiries, please contact our wholesale sales desk.</p>
+    </div>
+    </div></body></html>`)
+
+    win.document.close()
+    setCatalogModalOpen(false)
+  }
+
+  const generateExcelCatalog = async () => {
+    const list = await fetchFilteredProductsForCatalog()
+    if (!list || list.length === 0) {
+      toast.error('Is filter ke saath koi products nahi mile.')
+      return
+    }
+
+    const rows = [
+      ['#', 'SKU', 'Barcode', 'Product Name', 'Category', 'Selling Price (INR)', 'MRP (INR)', 'Stock', 'GST Rate (%)', 'Status', 'Image URL']
+    ]
+
+    list.forEach((pr: any, i: number) => {
+      rows.push([
+        i + 1,
+        pr.sku || '',
+        pr.barcode || '',
+        pr.name || '',
+        pr.category?.name || 'Uncategorized',
+        pr.price || 0,
+        pr.mrp || pr.price || 0,
+        pr.stock || 0,
+        pr.gstRate || 0,
+        pr.isActive ? 'Active' : 'Inactive',
+        pr.images?.[0]?.url || ''
+      ])
+    })
+
+    const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    const catObj = categories.find(c => c._id === catFilter)
+    const catName = catFilter === 'all' ? 'All_Categories' : (catObj?.name || 'Category').replace(/\s+/g, '_')
+    a.download = `Catalog_${catName}_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    toast.success('Excel catalog downloaded!')
+    setCatalogModalOpen(false)
+  }
 
   // ── Inline saves ────────────────────────────────────────────────────────────
   const saveStock = async (id: string, stock: number) => {
@@ -267,6 +615,18 @@ const ProductsPage: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all">
             <ExternalLink size={14}/> Preview Feed
           </a>
+          <button
+            onClick={() => setCatalogModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white shadow-md shadow-pink-500/20 transition-all duration-200"
+          >
+            <BookOpen size={16}/> Download Catalog
+          </button>
+          <button
+            onClick={() => { setExcelModalOpen(true); setParsedData([]); setImportFile(null); setImportResult(null); }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-green-600 hover:bg-green-700 text-white shadow-md shadow-green-600/20 transition-all duration-200"
+          >
+            <Download size={16}/> Excel Bulk Edit (Import / Export)
+          </button>
           <Link to="/products/add" className="btn-primary"><Plus size={17}/> Add Product</Link>
         </div>
       </div>
@@ -492,6 +852,193 @@ const ProductsPage: React.FC = () => {
                   {bulkDeleteLoading ? 'Deleting…' : <><Trash2 size={15}/> Delete {selectedIds.size} Products</>}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Download Product Catalog Modal ── */}
+      {catalogModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setCatalogModalOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-pink-50 via-purple-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-pink-500 text-white flex items-center justify-center font-bold text-lg shadow-sm">📖</div>
+                <div>
+                  <h2 className="font-bold text-base text-gray-900">Generate Product Catalog</h2>
+                  <p className="text-xs text-gray-500">Download or Print professional product catalog</p>
+                </div>
+              </div>
+              <button onClick={() => setCatalogModalOpen(false)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={18}/></button>
+            </div>
+
+            <div className="p-6 space-y-4 text-sm">
+              {/* Category Selector */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">📁 Select Category</label>
+                <select
+                  value={catFilter}
+                  onChange={e => setCatFilter(e.target.value)}
+                  className="input w-full py-2 text-xs font-semibold"
+                >
+                  <option value="all">🌟 All Categories (Full Store Catalog)</option>
+                  {categories.map(c => (
+                    <option key={c._id} value={c._id}>📁 {c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status & Stock Filters */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Status</label>
+                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input w-full py-2 text-xs">
+                    <option value="active">Active Only (Default)</option>
+                    <option value="all">All Products (Active + Hidden)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Stock Filter</label>
+                  <select value={stockFilter} onChange={e => setStockFilter(e.target.value)} className="input w-full py-2 text-xs">
+                    <option value="all">All Stock (Include Out of Stock)</option>
+                    <option value="instock">In-Stock Only</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Price Options & Grid Layout */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Price Options</label>
+                  <select value={priceOption} onChange={e => setPriceOption(e.target.value)} className="input w-full py-2 text-xs">
+                    <option value="both">Show Wholesale Rate & MRP</option>
+                    <option value="rate_only">Show Wholesale Rate Only</option>
+                    <option value="none">Hide Prices (Image Catalog Only)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Print Layout</label>
+                  <select value={layoutGrid} onChange={e => setLayoutGrid(e.target.value)} className="input w-full py-2 text-xs">
+                    <option value="3">3 Cards / Row (Standard PDF)</option>
+                    <option value="4">4 Cards / Row (Compact PDF)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-pink-50 border border-pink-200 rounded-xl p-3.5 text-xs text-pink-800 space-y-1">
+                <p className="font-bold flex items-center gap-1">✨ Professional Printable Catalog</p>
+                <p className="text-[11px] text-pink-700">Generates clean PDF printable cards with product images, SKU barcodes, wholesale rates & category headers.</p>
+              </div>
+            </div>
+
+            <div className="p-4 border-t bg-gray-50 flex gap-2 justify-end">
+              <button
+                onClick={generateExcelCatalog}
+                disabled={catalogLoading}
+                className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                <Download size={14}/> Export Excel (.csv)
+              </button>
+              <button
+                onClick={generatePdfCatalog}
+                disabled={catalogLoading}
+                className="px-5 py-2.5 bg-pink-600 hover:bg-pink-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                <FileText size={14}/> {catalogLoading ? 'Generating...' : '🖨️ Generate & Print PDF Catalog'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Excel Bulk Export & Import Modal ── */}
+      {excelModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setExcelModalOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-green-50 via-emerald-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">📊</div>
+                <div>
+                  <h2 className="font-bold text-base text-gray-900">Excel Bulk Stock & Price Update</h2>
+                  <p className="text-xs text-gray-500">Export products to Excel, edit Stock/Price/MRP, and re-import</p>
+                </div>
+              </div>
+              <button onClick={() => setExcelModalOpen(false)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={18}/></button>
+            </div>
+
+            <div className="p-6 space-y-5 text-sm">
+              {/* Step 1: Export */}
+              <div className="bg-green-50/70 border border-green-200 rounded-xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-green-900 text-xs uppercase tracking-wide">Step 1: Download Current Products Excel</h3>
+                  <button
+                    onClick={handleExportFullExcel}
+                    className="px-3.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Download size={13}/> Export CSV File
+                  </button>
+                </div>
+                <p className="text-xs text-green-700">
+                  Is file me saare products ka **Product ID, Stock, Wholesale Rate, MRP, GST Rate aur Status** hoga. Is file ko MS Excel ya Google Sheets me open karke stock/price change karein.
+                </p>
+              </div>
+
+              {/* Step 2: Import File Upload */}
+              <div className="border-2 border-dashed border-gray-300 hover:border-green-500 rounded-xl p-5 text-center transition-colors bg-gray-50/50">
+                <input
+                  type="file"
+                  accept=".csv"
+                  id="excel-file-upload"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <label htmlFor="excel-file-upload" className="cursor-pointer flex flex-col items-center justify-center">
+                  <Upload size={32} className="text-green-600 mb-2 animate-bounce"/>
+                  <span className="font-bold text-gray-800 text-sm">Click to Upload Edited CSV File</span>
+                  <span className="text-xs text-gray-400 mt-0.5">{importFile ? `Selected: ${importFile.name}` : 'Supports .csv exported from Step 1'}</span>
+                </label>
+              </div>
+
+              {/* Parsed Preview Summary */}
+              {parsedData.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-blue-900">Ready to Update: {parsedData.length} Products</span>
+                    <span className="text-[11px] text-blue-600 font-semibold">Columns Matched ✓</span>
+                  </div>
+                  <p className="text-xs text-blue-700">
+                    CSV File parsed successfully. Clicking **"Start Bulk Update"** will update stock, prices, MRP, and GST rates for all matched products in store.
+                  </p>
+                </div>
+              )}
+
+              {/* Import Result Feedback */}
+              {importResult && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-1 text-xs text-emerald-800">
+                  <p className="font-bold text-emerald-900 text-sm">🎉 {importResult.message}</p>
+                  <p>Updated: <strong>{importResult.updatedCount}</strong> product(s)</p>
+                  {importResult.errorsCount > 0 && (
+                    <p className="text-amber-700 mt-1">Skipped / Unmatched: {importResult.errorsCount} products</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t bg-gray-50 flex gap-2 justify-end">
+              <button
+                onClick={() => setExcelModalOpen(false)}
+                className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-300"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleStartBulkImport}
+                disabled={!parsedData.length || importing}
+                className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                {importing ? 'Updating Database…' : `🚀 Start Bulk Update (${parsedData.length})`}
+              </button>
             </div>
           </div>
         </div>
